@@ -1,0 +1,329 @@
+basePath: /
+definitions:
+  dto.CreateUserRequest:
+    properties:
+      email:
+        example: alice@example.com
+        type: string
+      name:
+        example: Alice
+        type: string
+    type: object
+  dto.ErrorDetail:
+    properties:
+      code:
+        example: VALIDATION_ERROR
+        type: string
+      message:
+        example: 잘못된 요청입니다
+        type: string
+    type: object
+  dto.ErrorResponse:
+    properties:
+      error:
+        $ref: '#/definitions/dto.ErrorDetail'
+      request_id:
+        example: 7f5f1f8e-6fd7-4d33-bfdf-6d414dc2b0b1
+        type: string
+      success:
+        example: false
+        type: boolean
+    type: object
+  dto.HealthData:
+    properties:
+      status:
+        example: ok
+        type: string
+    type: object
+  dto.HealthResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.HealthData'
+      request_id:
+        example: 7f5f1f8e-6fd7-4d33-bfdf-6d414dc2b0b1
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  dto.SendMailAttachmentRequest:
+    properties:
+      content_base64:
+        example: SGVsbG8gd29ybGQ=
+        type: string
+      content_type:
+        example: text/plain
+        type: string
+      filename:
+        example: guide.txt
+        type: string
+    type: object
+  dto.SendMailRequest:
+    properties:
+      attachments:
+        items:
+          $ref: '#/definitions/dto.SendMailAttachmentRequest'
+        type: array
+      bcc:
+        example:
+        - audit@example.com
+        items:
+          type: string
+        type: array
+      body:
+        example: Hello, this is a test mail.
+        type: string
+      cc:
+        example:
+        - team@example.com
+        items:
+          type: string
+        type: array
+      is_html:
+        example: false
+        type: boolean
+      subject:
+        example: Welcome
+        type: string
+      to:
+        example:
+        - user@example.com
+        items:
+          type: string
+        type: array
+    type: object
+  dto.SendMailResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.SendMailResponseData'
+      request_id:
+        example: 7f5f1f8e-6fd7-4d33-bfdf-6d414dc2b0b1
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  dto.SendMailResponseData:
+    properties:
+      accepted_recipients:
+        example: 1
+        type: integer
+    type: object
+  dto.UserCreateResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.UserResponse'
+      request_id:
+        example: 7f5f1f8e-6fd7-4d33-bfdf-6d414dc2b0b1
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  dto.UserGetResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.UserResponse'
+      request_id:
+        example: 7f5f1f8e-6fd7-4d33-bfdf-6d414dc2b0b1
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  dto.UserListEnvelopeResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.UserListResponse'
+      request_id:
+        example: 7f5f1f8e-6fd7-4d33-bfdf-6d414dc2b0b1
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  dto.UserListResponse:
+    properties:
+      count:
+        example: 1
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/dto.UserResponse'
+        type: array
+    type: object
+  dto.UserResponse:
+    properties:
+      created_at:
+        example: "2026-04-06T10:00:00Z"
+        type: string
+      email:
+        example: alice@example.com
+        type: string
+      id:
+        example: 1
+        type: integer
+      name:
+        example: Alice
+        type: string
+      updated_at:
+        example: "2026-04-06T10:00:00Z"
+        type: string
+    type: object
+info:
+  contact: {}
+  description: 멀티 DB와 암호화된 설정을 지원하는 REST API 샘플입니다.
+  title: My API
+  version: "1.0"
+paths:
+  /api/v1/mail/send:
+    post:
+      consumes:
+      - application/json
+      description: SMTP 서버를 통해 메일을 발송한다
+      parameters:
+      - description: 메일 발송 요청
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SendMailRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/dto.SendMailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: 메일 발송
+      tags:
+      - mail
+  /api/v1/users:
+    get:
+      description: 페이징 기반으로 사용자 목록을 조회한다
+      parameters:
+      - description: 조회 건수
+        in: query
+        name: limit
+        type: integer
+      - description: 오프셋
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserListEnvelopeResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: 사용자 목록 조회
+      tags:
+      - users
+    post:
+      consumes:
+      - application/json
+      description: 신규 사용자를 생성한다
+      parameters:
+      - description: 사용자 생성 요청
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.UserCreateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: 사용자 생성
+      tags:
+      - users
+  /api/v1/users/{id}:
+    get:
+      description: ID로 사용자를 조회한다
+      parameters:
+      - description: 사용자 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserGetResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: 사용자 단건 조회
+      tags:
+      - users
+  /health:
+    get:
+      description: 프로세스가 살아있는지 확인한다
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.HealthResponse'
+      summary: Liveness 확인
+      tags:
+      - health
+  /ready:
+    get:
+      description: DB 연결 가능 여부를 확인한다
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.HealthResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Readiness 확인
+      tags:
+      - health
+swagger: "2.0"

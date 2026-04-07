@@ -1,0 +1,45 @@
+app:
+  name: "my-api"
+  port: 8080
+  env: "local"
+
+swagger:
+  enabled: true
+
+db:
+  vendor: "postgres"
+  host: "127.0.0.1"
+  port: 5432
+  name: "myapp"
+  user: "appuser"
+  password: "ENC(REPLACE_WITH_SECRETENC_OUTPUT)"
+  sslmode: "disable"
+  max_open_conns: 20
+  max_idle_conns: 10
+  conn_max_lifetime: "30m"
+
+smtp:
+  enabled: false
+  host: "smtp.example.com"
+  port: 587
+  username: "mailer"
+  password: "ENC(REPLACE_WITH_SECRETENC_OUTPUT)"
+  from_address: "no-reply@example.com"
+  from_name: "My API"
+  auth_type: "plain"
+  starttls: true
+  tls: false
+  timeout: "10s"
+
+scheduler:
+  enabled: false
+  poll_interval: "10s"
+  timezone: "Asia/Seoul"
+  runner_id: "scheduler-1"
+  lock_provider: "postgres"
+  max_parallel_jobs: 1
+  shutdown_timeout: "30s"
+
+security:
+  secret_provider: "local_encryption"
+  master_key_env: "APP_MASTER_KEY"
