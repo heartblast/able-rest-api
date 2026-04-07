@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"my-api/internal/domain/model"
+	"able-rest-api/internal/domain/model"
 )
 
 type stubMailSender struct {

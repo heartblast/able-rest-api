@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"my-api/internal/domain/model"
+	"able-rest-api/internal/domain/model"
 )
 
 // MailDispatchJob는 향후 예약 메일 발송 작업을 연결하기 위한 기본 작업이다.

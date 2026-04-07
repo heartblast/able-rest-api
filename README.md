@@ -1,11 +1,11 @@
-# my-api
+# able-rest-api
 
 장기 유지보수와 멀티 DB 전환 가능성을 우선한 Go 1.26.1 REST API 템플릿입니다.
 
 ## 디렉터리 구조
 
 ```text
-my-api/
+able-rest-api/
   cmd/
     server/
       main.go

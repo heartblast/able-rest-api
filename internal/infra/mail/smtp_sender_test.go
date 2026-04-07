@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"my-api/internal/domain/model"
-	"my-api/internal/infra/config"
+	"able-rest-api/internal/domain/model"
+	"able-rest-api/internal/infra/config"
 )
 
 func TestBuildMessageWithAttachment(t *testing.T) {

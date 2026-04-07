@@ -4,12 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 
-	"my-api/internal/domain/repository"
-	"my-api/internal/infra/config"
-	"my-api/internal/infra/db/hsqldb"
-	"my-api/internal/infra/db/mysql"
-	"my-api/internal/infra/db/oracle"
-	"my-api/internal/infra/db/postgres"
+	"able-rest-api/internal/domain/repository"
+	"able-rest-api/internal/infra/config"
+	"able-rest-api/internal/infra/db/hsqldb"
+	"able-rest-api/internal/infra/db/mysql"
+	"able-rest-api/internal/infra/db/oracle"
+	"able-rest-api/internal/infra/db/postgres"
 )
 
 // Repositories는 애플리케이션이 사용하는 저장소 묶음이다.

@@ -1,4 +1,4 @@
-APP_NAME=my-api
+APP_NAME=able-rest-api
 CONFIG?=configs/app.yaml
 
 .PHONY: run build test swag secretenc

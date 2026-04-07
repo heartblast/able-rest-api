@@ -5,9 +5,9 @@ import (
 	"errors"
 	"net/http"
 
-	"my-api/internal/app/service"
-	"my-api/internal/delivery/http/dto"
-	"my-api/internal/domain/model"
+	"able-rest-api/internal/app/service"
+	"able-rest-api/internal/delivery/http/dto"
+	"able-rest-api/internal/domain/model"
 )
 
 // MailHandler는 메일 발송 HTTP 요청을 처리한다.

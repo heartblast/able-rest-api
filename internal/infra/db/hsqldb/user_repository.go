@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"my-api/internal/domain/model"
-	"my-api/internal/domain/repository"
+	"able-rest-api/internal/domain/model"
+	"able-rest-api/internal/domain/repository"
 )
 
 // UserRepository는 HSQLDB 확장 포인트용 skeleton 구현체다.

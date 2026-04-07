@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"my-api/internal/domain/model"
-	"my-api/internal/domain/repository"
+	"able-rest-api/internal/domain/model"
+	"able-rest-api/internal/domain/repository"
 )
 
 var (

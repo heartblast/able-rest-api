@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"my-api/internal/domain/model"
-	"my-api/internal/domain/port"
+	"able-rest-api/internal/domain/model"
+	"able-rest-api/internal/domain/port"
 )
 
 type registeredJob struct {

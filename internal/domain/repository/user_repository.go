@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"my-api/internal/domain/model"
+	"able-rest-api/internal/domain/model"
 )
 
 // UserFilter는 사용자 조회 조건을 표현한다.

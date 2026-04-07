@@ -39,7 +39,7 @@
 ## 목표 아키텍처
 
 ```text
-my-api/
+able-rest-api/
   cmd/
     server/
       main.go

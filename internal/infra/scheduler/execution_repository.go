@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 
-	"my-api/internal/domain/model"
-	"my-api/internal/domain/port"
-	"my-api/internal/infra/config"
+	"able-rest-api/internal/domain/model"
+	"able-rest-api/internal/domain/port"
+	"able-rest-api/internal/infra/config"
 )
 
 type noopExecutionRepository struct{}

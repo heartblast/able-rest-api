@@ -10,15 +10,15 @@ import (
 	"syscall"
 	"time"
 
-	_ "my-api/docs"
-	"my-api/internal/app/service"
-	"my-api/internal/delivery/http/router"
-	"my-api/internal/infra/config"
-	"my-api/internal/infra/db/factory"
-	mailinfra "my-api/internal/infra/mail"
-	"my-api/internal/infra/persistence"
-	"my-api/internal/infra/security"
-	"my-api/internal/platform/logger"
+	_ "able-rest-api/docs"
+	"able-rest-api/internal/app/service"
+	"able-rest-api/internal/delivery/http/router"
+	"able-rest-api/internal/infra/config"
+	"able-rest-api/internal/infra/db/factory"
+	mailinfra "able-rest-api/internal/infra/mail"
+	"able-rest-api/internal/infra/persistence"
+	"able-rest-api/internal/infra/security"
+	"able-rest-api/internal/platform/logger"
 )
 
 // @title My API

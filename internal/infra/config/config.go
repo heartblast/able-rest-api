@@ -11,7 +11,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"my-api/internal/infra/security"
+	"able-rest-api/internal/infra/security"
 )
 
 type DBVendor string

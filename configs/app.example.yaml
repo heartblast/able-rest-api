@@ -1,5 +1,5 @@
 app:
-  name: "my-api"
+  name: "able-rest-api"
   port: 8080
   env: "local"
 

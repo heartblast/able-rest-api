@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"my-api/internal/app/service"
-	"my-api/internal/domain/port"
-	"my-api/internal/infra/config"
-	"my-api/internal/platform/logger"
+	"able-rest-api/internal/app/service"
+	"able-rest-api/internal/domain/port"
+	"able-rest-api/internal/infra/config"
+	"able-rest-api/internal/platform/logger"
 )
 
 // Runner는 주기적으로 due job을 실행한다.

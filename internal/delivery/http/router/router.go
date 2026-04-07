@@ -9,12 +9,12 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 
-	"my-api/internal/app/service"
-	"my-api/internal/delivery/http/handler"
-	custommw "my-api/internal/delivery/http/middleware"
-	"my-api/internal/infra/config"
-	"my-api/internal/infra/persistence"
-	"my-api/internal/platform/logger"
+	"able-rest-api/internal/app/service"
+	"able-rest-api/internal/delivery/http/handler"
+	custommw "able-rest-api/internal/delivery/http/middleware"
+	"able-rest-api/internal/infra/config"
+	"able-rest-api/internal/infra/persistence"
+	"able-rest-api/internal/platform/logger"
 )
 
 // New는 HTTP 라우터를 생성한다.

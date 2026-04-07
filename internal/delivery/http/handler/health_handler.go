@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 
-	"my-api/internal/delivery/http/dto"
+	"able-rest-api/internal/delivery/http/dto"
 )
 
 // HealthHandler는 상태 점검 핸들러다.

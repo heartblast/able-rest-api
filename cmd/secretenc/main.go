@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/pflag"
 
-	"my-api/internal/infra/security"
+	"able-rest-api/internal/infra/security"
 )
 
 func main() {

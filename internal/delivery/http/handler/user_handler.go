@@ -8,9 +8,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"my-api/internal/app/service"
-	"my-api/internal/delivery/http/dto"
-	"my-api/internal/domain/model"
+	"able-rest-api/internal/app/service"
+	"able-rest-api/internal/delivery/http/dto"
+	"able-rest-api/internal/domain/model"
 )
 
 // UserHandler는 사용자 HTTP 요청을 처리한다.

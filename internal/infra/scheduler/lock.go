@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"my-api/internal/domain/port"
-	"my-api/internal/infra/config"
+	"able-rest-api/internal/domain/port"
+	"able-rest-api/internal/infra/config"
 )
 
 type noopLock struct{}

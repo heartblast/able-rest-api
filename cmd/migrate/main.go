@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"my-api/internal/infra/config"
-	"my-api/internal/platform/logger"
+	"able-rest-api/internal/infra/config"
+	"able-rest-api/internal/platform/logger"
 )
 
 func main() {

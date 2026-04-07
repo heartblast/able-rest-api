@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"my-api/internal/platform/logger"
+	"able-rest-api/internal/platform/logger"
 )
 
 type responseRecorder struct {

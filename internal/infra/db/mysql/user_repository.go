@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 
-	"my-api/internal/domain/model"
-	"my-api/internal/domain/repository"
-	"my-api/internal/infra/config"
-	"my-api/internal/infra/db/dialect"
+	"able-rest-api/internal/domain/model"
+	"able-rest-api/internal/domain/repository"
+	"able-rest-api/internal/infra/config"
+	"able-rest-api/internal/infra/db/dialect"
 )
 
 // UserRepository는 MySQL 사용자 저장소 구현체다.

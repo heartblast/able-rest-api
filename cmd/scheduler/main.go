@@ -9,12 +9,12 @@ import (
 	"syscall"
 	"time"
 
-	"my-api/internal/app/service"
-	"my-api/internal/infra/config"
-	"my-api/internal/infra/db/factory"
-	schedulerinfra "my-api/internal/infra/scheduler"
-	"my-api/internal/infra/security"
-	"my-api/internal/platform/logger"
+	"able-rest-api/internal/app/service"
+	"able-rest-api/internal/infra/config"
+	"able-rest-api/internal/infra/db/factory"
+	schedulerinfra "able-rest-api/internal/infra/scheduler"
+	"able-rest-api/internal/infra/security"
+	"able-rest-api/internal/platform/logger"
 )
 
 func main() {

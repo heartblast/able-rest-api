@@ -3,7 +3,7 @@ package port
 import (
 	"context"
 
-	"my-api/internal/domain/model"
+	"able-rest-api/internal/domain/model"
 )
 
 // JobExecutionRepository는 작업 실행 이력 저장 계약이다.

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"my-api/internal/domain/model"
+	"able-rest-api/internal/domain/model"
 )
 
 type stubScheduledJob struct {

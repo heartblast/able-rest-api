@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"my-api/internal/delivery/http/dto"
-	"my-api/internal/delivery/http/middleware"
+	"able-rest-api/internal/delivery/http/dto"
+	"able-rest-api/internal/delivery/http/middleware"
 )
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
