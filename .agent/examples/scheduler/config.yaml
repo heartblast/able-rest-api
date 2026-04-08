@@ -1,0 +1,8 @@
+scheduler:
+  enabled: true
+  poll_interval: "10s"
+  timezone: "Asia/Seoul"
+  runner_id: "scheduler-1"
+  lock_provider: "postgres"
+  max_parallel_jobs: 1
+  shutdown_timeout: "30s"

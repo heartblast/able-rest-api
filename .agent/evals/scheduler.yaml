@@ -1,0 +1,8 @@
+name: scheduler
+checks:
+  - scheduler remains a separate process from the API server
+  - scheduler config fields exist in config struct and examples
+  - domain models and ports represent jobs and executions clearly
+  - duplicate execution prevention uses the configured lock strategy
+  - graceful shutdown is implemented
+  - verification includes build or test coverage for scheduler wiring

@@ -1,0 +1,8 @@
+name: smtp-api
+checks:
+  - mail route exists under /api/v1/mail/send
+  - handler depends on service rather than SMTP infra directly
+  - smtp config is represented in YAML and env override logic
+  - smtp password resolves through the secret provider path
+  - Swagger artifacts reflect request and response schema changes
+  - verification includes gofmt and go test ./...

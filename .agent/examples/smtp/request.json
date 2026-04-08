@@ -1,0 +1,8 @@
+{
+  "to": [
+    "user@example.com"
+  ],
+  "subject": "Welcome",
+  "body": "Hello from able-rest-api",
+  "is_html": false
+}

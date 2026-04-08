@@ -1,0 +1,8 @@
+name: smtp-attachments
+checks:
+  - request schema includes attachments array
+  - filename and base64 content are validated
+  - attachment count and size limits are enforced
+  - no-attachment flow preserves previous behavior
+  - MIME multipart generation is covered by tests or direct verification
+  - sensitive attachment content is not logged
