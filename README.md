@@ -90,6 +90,14 @@ able-rest-api/
   go.mod
 ```
 
+## Framework와 업무 모듈 경계
+
+- 공통 플랫폼: `internal/delivery/http/router`는 인증이 적용된 `/api/v1` 라우터와 공통 미들웨어를 구성합니다. `internal/delivery/http/middleware`, `internal/platform/http`(상태 확인과 응답 형식), `internal/platform/logger`, `internal/infra/config`, `docs/openapi.yaml`도 여러 업무 모듈에서 공유합니다. 설정 로드와 시크릿 처리 구현은 현재 `infra`에 유지합니다.
+- 업무 모듈: `internal/modules/user`와 `internal/modules/mail`이 각자의 HTTP 경로를 등록합니다. 기존 `internal/app/service`, `internal/domain`, `internal/delivery/http/handler`, `internal/delivery/http/dto`에는 업무별 서비스·모델·핸들러·DTO가 남아 있습니다. PostgreSQL/MySQL 저장소와 SMTP 어댑터는 `internal/infra`에 있습니다.
+- 조립 위치: `cmd/server`가 DB·SMTP·서비스를 생성하고 각 모듈의 `Routes`를 공통 라우터에 전달합니다. 공통 라우터는 업무 서비스나 저장소를 생성하지 않습니다. `cmd/scheduler`는 별도로 작업 서비스를 조립합니다.
+
+새 업무 모듈을 추가할 때는 도메인 모델·포트와 서비스에 업무 규칙을 두고, HTTP 핸들러와 DTO를 만든 뒤 `internal/modules/<이름>/routes.go`에서 경로를 등록하세요. `cmd/server`에서 의존성을 조립해 해당 `Routes`를 전달하고, `docs/openapi.yaml`과 `internal/delivery/http/router/runtime_contract_test.go`의 정상·오류 사례를 함께 갱신하세요. 기존 URI와 응답 형식은 그대로 유지해야 합니다.
+
 ## 실행 준비
 
 1. 설정 파일 생성

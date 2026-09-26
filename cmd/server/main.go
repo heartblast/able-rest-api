@@ -17,6 +17,8 @@ import (
 	mailinfra "able-rest-api/internal/infra/mail"
 	"able-rest-api/internal/infra/persistence"
 	"able-rest-api/internal/infra/security"
+	mailmodule "able-rest-api/internal/modules/mail"
+	usermodule "able-rest-api/internal/modules/user"
 	"able-rest-api/internal/platform/logger"
 )
 
@@ -64,7 +66,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.App.Host, cfg.App.Port),
-		Handler:           router.New(cfg, log, db, repos, mailService),
+		Handler:           router.New(cfg, log, db, usermodule.Routes(service.NewUserService(repos.UserRepository)), mailmodule.Routes(mailService)),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      45 * time.Second,

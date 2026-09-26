@@ -10,16 +10,17 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 
 	"able-rest-api/docs"
-	"able-rest-api/internal/app/service"
-	"able-rest-api/internal/delivery/http/handler"
 	custommw "able-rest-api/internal/delivery/http/middleware"
 	"able-rest-api/internal/infra/config"
-	"able-rest-api/internal/infra/persistence"
+	"able-rest-api/internal/platform/http/health"
 	"able-rest-api/internal/platform/logger"
 )
 
-// New는 HTTP 라우터를 생성한다.
-func New(cfg *config.Config, log logger.Logger, db *sql.DB, repos *persistence.Repositories, mailService *service.MailService) http.Handler {
+// Module은 보호된 API 경로에 업무 라우트를 등록한다.
+type Module func(chi.Router)
+
+// New는 공통 HTTP 라우터에 업무 모듈을 등록한다.
+func New(cfg *config.Config, log logger.Logger, db *sql.DB, modules ...Module) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(custommw.RequestID)
@@ -29,9 +30,7 @@ func New(cfg *config.Config, log logger.Logger, db *sql.DB, repos *persistence.R
 	r.Use(custommw.JSONContentType)
 	r.Use(custommw.LimitJSONBody(cfg.Security.MaxRequestBodyBytes))
 
-	healthHandler := handler.NewHealthHandler(db)
-	userHandler := handler.NewUserHandler(service.NewUserService(repos.UserRepository))
-	mailHandler := handler.NewMailHandler(mailService)
+	healthHandler := health.NewHealthHandler(db)
 
 	r.Get("/health", healthHandler.Health)
 	r.Get("/ready", healthHandler.Ready)
@@ -42,14 +41,9 @@ func New(cfg *config.Config, log logger.Logger, db *sql.DB, repos *persistence.R
 
 	r.Route("/api/v1", func(api chi.Router) {
 		api.Use(custommw.APIKey(cfg.App.Env, cfg.Security.APIKeyEnv))
-		api.Route("/users", func(users chi.Router) {
-			users.Get("/", userHandler.ListUsers)
-			users.Post("/", userHandler.CreateUser)
-			users.Get("/{id}", userHandler.GetUser)
-		})
-		api.Route("/mail", func(mail chi.Router) {
-			mail.Post("/send", mailHandler.Send)
-		})
+		for _, register := range modules {
+			register(api)
+		}
 	})
 
 	if cfg.Swagger.Enabled {

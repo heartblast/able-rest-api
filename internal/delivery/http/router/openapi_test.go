@@ -37,7 +37,7 @@ func TestOpenAPIContractAndRoutes(t *testing.T) {
 		t.Fatalf("expected OpenAPI 3.x, got %q", doc.OpenAPI)
 	}
 
-	r := New(&config.Config{Swagger: config.SwaggerConfig{Enabled: true}}, quietLogger{}, nil, &persistence.Repositories{}, nil)
+	r := newTestRouter(&config.Config{Swagger: config.SwaggerConfig{Enabled: true}}, quietLogger{}, nil, &persistence.Repositories{}, nil)
 	recorder := httptest.NewRecorder()
 	r.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/openapi.json", nil))
 	if recorder.Code != http.StatusOK {
@@ -294,7 +294,7 @@ func keys[V any](values map[string]V) []string {
 }
 
 func TestSwaggerUIUsesOpenAPI(t *testing.T) {
-	r := New(&config.Config{Swagger: config.SwaggerConfig{Enabled: true}}, quietLogger{}, nil, &persistence.Repositories{}, nil)
+	r := newTestRouter(&config.Config{Swagger: config.SwaggerConfig{Enabled: true}}, quietLogger{}, nil, &persistence.Repositories{}, nil)
 	recorder := httptest.NewRecorder()
 	r.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/swagger/index.html", nil))
 	if recorder.Code != http.StatusOK {

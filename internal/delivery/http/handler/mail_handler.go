@@ -8,6 +8,7 @@ import (
 	"able-rest-api/internal/delivery/http/dto"
 	"able-rest-api/internal/delivery/http/middleware"
 	"able-rest-api/internal/domain/model"
+	"able-rest-api/internal/platform/http/response"
 )
 
 // MailHandler는 메일 발송 HTTP 요청을 처리한다.
@@ -24,10 +25,10 @@ func (h *MailHandler) Send(w http.ResponseWriter, r *http.Request) {
 	var req dto.SendMailRequest
 	if err := middleware.DecodeJSON(r, &req); err != nil {
 		if middleware.JSONErrorStatus(err) == http.StatusRequestEntityTooLarge {
-			writeError(w, r, http.StatusRequestEntityTooLarge, "REQUEST_TOO_LARGE", "요청 본문이 너무 큽니다")
+			response.WriteError(w, r, http.StatusRequestEntityTooLarge, "REQUEST_TOO_LARGE", "요청 본문이 너무 큽니다")
 			return
 		}
-		writeError(w, r, http.StatusBadRequest, "INVALID_JSON", "JSON 본문이 올바르지 않습니다")
+		response.WriteError(w, r, http.StatusBadRequest, "INVALID_JSON", "JSON 본문이 올바르지 않습니다")
 		return
 	}
 
@@ -53,16 +54,16 @@ func (h *MailHandler) Send(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrInvalidInput):
-			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+			response.WriteError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 		case errors.Is(err, service.ErrDisabled):
-			writeError(w, r, http.StatusServiceUnavailable, "MAIL_DISABLED", "메일 발송 기능이 비활성화되어 있습니다")
+			response.WriteError(w, r, http.StatusServiceUnavailable, "MAIL_DISABLED", "메일 발송 기능이 비활성화되어 있습니다")
 		default:
-			writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "메일 발송 중 오류가 발생했습니다")
+			response.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "메일 발송 중 오류가 발생했습니다")
 		}
 		return
 	}
 
-	writeSuccess(w, r, http.StatusAccepted, dto.SendMailResponseData{
+	response.WriteSuccess(w, r, http.StatusAccepted, dto.SendMailResponseData{
 		AcceptedRecipients: acceptedRecipients,
 	})
 }
