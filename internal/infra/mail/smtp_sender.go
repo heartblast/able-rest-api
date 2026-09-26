@@ -14,12 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"able-rest-api/internal/domain/model"
-	"able-rest-api/internal/domain/port"
 	"able-rest-api/internal/infra/config"
+	"able-rest-api/internal/modules/mail"
 )
 
-var _ port.MailSender = (*SMTPSender)(nil)
+var _ mail.MailSender = (*SMTPSender)(nil)
 
 // SMTPSender는 SMTP 기반 메일 발송 구현체다.
 type SMTPSender struct {
@@ -32,7 +31,7 @@ func NewSMTPSender(cfg config.SMTPConfig) *SMTPSender {
 }
 
 // Send는 SMTP 서버를 통해 메일을 발송한다.
-func (s *SMTPSender) Send(ctx context.Context, message model.MailMessage) error {
+func (s *SMTPSender) Send(ctx context.Context, message mail.MailMessage) error {
 	address := net.JoinHostPort(s.cfg.Host, fmt.Sprintf("%d", s.cfg.Port))
 	dialer := &net.Dialer{Timeout: s.cfg.Timeout}
 
@@ -132,14 +131,14 @@ func (s *SMTPSender) authenticate(client *smtp.Client) error {
 	return nil
 }
 
-func buildMessage(cfg config.SMTPConfig, message model.MailMessage) ([]byte, error) {
+func buildMessage(cfg config.SMTPConfig, message mail.MailMessage) ([]byte, error) {
 	if len(message.Attachments) == 0 {
 		return []byte(buildSimpleMessage(cfg, message)), nil
 	}
 	return buildMultipartMessage(cfg, message)
 }
 
-func buildSimpleMessage(cfg config.SMTPConfig, message model.MailMessage) string {
+func buildSimpleMessage(cfg config.SMTPConfig, message mail.MailMessage) string {
 	headers := []string{
 		fmt.Sprintf("From: %s", formatFrom(cfg.FromName, cfg.FromAddress)),
 		fmt.Sprintf("To: %s", strings.Join(message.To, ", ")),
@@ -155,7 +154,7 @@ func buildSimpleMessage(cfg config.SMTPConfig, message model.MailMessage) string
 	return strings.Join(headers, "\r\n") + "\r\n\r\n" + message.Body
 }
 
-func buildMultipartMessage(cfg config.SMTPConfig, message model.MailMessage) ([]byte, error) {
+func buildMultipartMessage(cfg config.SMTPConfig, message mail.MailMessage) ([]byte, error) {
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 
@@ -229,7 +228,7 @@ func sanitizeHeaderValue(value string) string {
 	return strings.TrimSpace(value)
 }
 
-func allRecipients(message model.MailMessage) []string {
+func allRecipients(message mail.MailMessage) []string {
 	recipients := make([]string, 0, len(message.To)+len(message.CC)+len(message.BCC))
 	recipients = append(recipients, message.To...)
 	recipients = append(recipients, message.CC...)

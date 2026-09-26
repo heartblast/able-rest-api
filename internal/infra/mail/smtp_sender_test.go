@@ -4,19 +4,19 @@ import (
 	"strings"
 	"testing"
 
-	"able-rest-api/internal/domain/model"
 	"able-rest-api/internal/infra/config"
+	"able-rest-api/internal/modules/mail"
 )
 
 func TestBuildMessageWithAttachment(t *testing.T) {
 	payload, err := buildMessage(config.SMTPConfig{
 		FromAddress: "no-reply@example.com",
 		FromName:    "Mailer",
-	}, model.MailMessage{
+	}, mail.MailMessage{
 		To:      []string{"user@example.com"},
 		Subject: "hello",
 		Body:    "world",
-		Attachments: []model.MailAttachment{
+		Attachments: []mail.MailAttachment{
 			{
 				Filename:    "guide.txt",
 				ContentType: "text/plain",
@@ -46,7 +46,7 @@ func TestBuildMessageWithAttachment(t *testing.T) {
 func TestBuildMessageWithoutAttachment(t *testing.T) {
 	payload, err := buildMessage(config.SMTPConfig{
 		FromAddress: "no-reply@example.com",
-	}, model.MailMessage{
+	}, mail.MailMessage{
 		To:      []string{"user@example.com"},
 		Subject: "hello",
 		Body:    "world",

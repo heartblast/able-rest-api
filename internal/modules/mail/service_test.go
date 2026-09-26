@@ -5,16 +5,14 @@ import (
 	"errors"
 	"strings"
 	"testing"
-
-	"able-rest-api/internal/domain/model"
 )
 
 type stubMailSender struct {
-	message model.MailMessage
+	message MailMessage
 	err     error
 }
 
-func (s *stubMailSender) Send(_ context.Context, message model.MailMessage) error {
+func (s *stubMailSender) Send(_ context.Context, message MailMessage) error {
 	s.message = message
 	return s.err
 }
@@ -23,13 +21,13 @@ func TestMailServiceSendMail(t *testing.T) {
 	sender := &stubMailSender{}
 	svc := NewMailService(true, sender)
 
-	acceptedRecipients, err := svc.SendMail(context.Background(), model.MailMessage{
+	acceptedRecipients, err := svc.SendMail(context.Background(), MailMessage{
 		To:      []string{"USER@example.com", "user@example.com"},
 		CC:      []string{"cc@example.com", "user@example.com"},
 		BCC:     []string{"bcc@example.com", "cc@example.com"},
 		Subject: " hello ",
 		Body:    " world ",
-		Attachments: []model.MailAttachment{
+		Attachments: []MailAttachment{
 			{
 				Filename:      " guide.txt ",
 				ContentType:   "text/plain",
@@ -71,7 +69,7 @@ func TestMailServiceValidation(t *testing.T) {
 	sender := &stubMailSender{}
 	svc := NewMailService(true, sender)
 
-	_, err := svc.SendMail(context.Background(), model.MailMessage{
+	_, err := svc.SendMail(context.Background(), MailMessage{
 		To:      []string{"not-an-email"},
 		Subject: "test",
 		Body:    "body",
@@ -85,11 +83,11 @@ func TestMailServiceAttachmentValidation(t *testing.T) {
 	sender := &stubMailSender{}
 	svc := NewMailService(true, sender)
 
-	_, err := svc.SendMail(context.Background(), model.MailMessage{
+	_, err := svc.SendMail(context.Background(), MailMessage{
 		To:      []string{"user@example.com"},
 		Subject: "test",
 		Body:    "body",
-		Attachments: []model.MailAttachment{
+		Attachments: []MailAttachment{
 			{
 				Filename:      "bad.txt",
 				ContentBase64: "%%%invalid%%%",
@@ -105,15 +103,15 @@ func TestMailServiceAttachmentCountValidation(t *testing.T) {
 	sender := &stubMailSender{}
 	svc := NewMailService(true, sender)
 
-	attachments := make([]model.MailAttachment, 0, maxAttachmentCount+1)
+	attachments := make([]MailAttachment, 0, maxAttachmentCount+1)
 	for i := 0; i < maxAttachmentCount+1; i++ {
-		attachments = append(attachments, model.MailAttachment{
+		attachments = append(attachments, MailAttachment{
 			Filename:      "file.txt",
 			ContentBase64: "SGVsbG8=",
 		})
 	}
 
-	_, err := svc.SendMail(context.Background(), model.MailMessage{
+	_, err := svc.SendMail(context.Background(), MailMessage{
 		To:          []string{"user@example.com"},
 		Subject:     "test",
 		Body:        "body",
@@ -129,7 +127,7 @@ func TestMailServiceAttachmentCountValidation(t *testing.T) {
 
 func TestMailServiceDisabled(t *testing.T) {
 	svc := NewMailService(false, nil)
-	_, err := svc.SendMail(context.Background(), model.MailMessage{
+	_, err := svc.SendMail(context.Background(), MailMessage{
 		To:      []string{"user@example.com"},
 		Subject: "test",
 		Body:    "body",

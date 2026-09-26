@@ -9,12 +9,11 @@ import (
 	"syscall"
 	"time"
 
-	"able-rest-api/internal/app/service"
 	"able-rest-api/internal/infra/config"
 	"able-rest-api/internal/infra/db/factory"
 	schedulerinfra "able-rest-api/internal/infra/scheduler"
 	"able-rest-api/internal/infra/security"
-	mailmodule "able-rest-api/internal/modules/mail"
+	"able-rest-api/internal/modules/scheduler"
 	"able-rest-api/internal/platform/logger"
 )
 
@@ -55,9 +54,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	jobService := service.NewJobService(
+	jobService := scheduler.NewJobService(
 		schedulerinfra.NewExecutionRepository(cfg.DB.Vendor, db),
-		mailmodule.NewMailDispatchJob(),
+		scheduler.NewMailDispatchJob(),
 	)
 
 	runner := schedulerinfra.NewRunner(cfg.Scheduler, log, jobService, lock)

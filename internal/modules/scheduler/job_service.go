@@ -1,4 +1,4 @@
-package service
+package scheduler
 
 import (
 	"context"
@@ -7,14 +7,11 @@ import (
 	"fmt"
 	"sync"
 	"time"
-
-	"able-rest-api/internal/domain/model"
-	"able-rest-api/internal/domain/port"
 )
 
 type registeredJob struct {
-	runner  port.JobRunner
-	job     model.ScheduledJob
+	runner  JobRunner
+	job     ScheduledJob
 	running bool
 }
 
@@ -22,11 +19,11 @@ type registeredJob struct {
 type JobService struct {
 	mu             sync.Mutex
 	jobs           map[string]*registeredJob
-	executionStore port.JobExecutionRepository
+	executionStore JobExecutionRepository
 }
 
 // NewJobService는 JobService를 생성한다.
-func NewJobService(executionStore port.JobExecutionRepository, runners ...port.JobRunner) *JobService {
+func NewJobService(executionStore JobExecutionRepository, runners ...JobRunner) *JobService {
 	svc := &JobService{
 		jobs:           make(map[string]*registeredJob, len(runners)),
 		executionStore: executionStore,
@@ -38,7 +35,7 @@ func NewJobService(executionStore port.JobExecutionRepository, runners ...port.J
 }
 
 // Register는 스케줄 작업을 등록한다.
-func (s *JobService) Register(runner port.JobRunner) {
+func (s *JobService) Register(runner JobRunner) {
 	definition := runner.Definition()
 	if definition.NextRunAt.IsZero() {
 		definition.NextRunAt = time.Now()
@@ -56,11 +53,11 @@ func (s *JobService) Register(runner port.JobRunner) {
 }
 
 // DueJobs는 현재 시각 기준으로 실행 가능한 작업을 가져온다.
-func (s *JobService) DueJobs(now time.Time) []port.JobRunner {
+func (s *JobService) DueJobs(now time.Time) []JobRunner {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	runners := make([]port.JobRunner, 0, len(s.jobs))
+	runners := make([]JobRunner, 0, len(s.jobs))
 	for _, entry := range s.jobs {
 		if !entry.job.Enabled {
 			continue
@@ -81,12 +78,12 @@ func (s *JobService) DueJobs(now time.Time) []port.JobRunner {
 }
 
 // StartExecution은 작업 실행 이력을 생성한다.
-func (s *JobService) StartExecution(ctx context.Context, jobID, runnerID string, startedAt time.Time) (*model.JobExecution, error) {
-	execution := &model.JobExecution{
+func (s *JobService) StartExecution(ctx context.Context, jobID, runnerID string, startedAt time.Time) (*JobExecution, error) {
+	execution := &JobExecution{
 		ID:        newExecutionID(),
 		JobID:     jobID,
 		StartedAt: startedAt,
-		Status:    model.JobExecutionStatusRunning,
+		Status:    JobExecutionStatusRunning,
 		RunnerID:  runnerID,
 	}
 	if s.executionStore != nil {
@@ -98,7 +95,7 @@ func (s *JobService) StartExecution(ctx context.Context, jobID, runnerID string,
 }
 
 // FinishExecution은 작업 실행 이력을 완료 상태로 갱신한다.
-func (s *JobService) FinishExecution(ctx context.Context, jobID string, execution *model.JobExecution, runErr error, finishedAt time.Time) error {
+func (s *JobService) FinishExecution(ctx context.Context, jobID string, execution *JobExecution, runErr error, finishedAt time.Time) error {
 	s.mu.Lock()
 	if entry, ok := s.jobs[jobID]; ok {
 		entry.running = false
@@ -111,10 +108,10 @@ func (s *JobService) FinishExecution(ctx context.Context, jobID string, executio
 
 	execution.FinishedAt = &finishedAt
 	if runErr != nil {
-		execution.Status = model.JobExecutionStatusFailed
+		execution.Status = JobExecutionStatusFailed
 		execution.ErrorMessage = runErr.Error()
 	} else {
-		execution.Status = model.JobExecutionStatusSuccess
+		execution.Status = JobExecutionStatusSuccess
 	}
 
 	if s.executionStore != nil {

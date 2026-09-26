@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"able-rest-api/internal/domain/port"
 	"able-rest-api/internal/infra/config"
+	"able-rest-api/internal/modules/scheduler"
 )
 
 type noopLock struct{}
@@ -17,7 +17,7 @@ func (noopLock) Acquire(_ context.Context, _ string) (bool, func() error, error)
 }
 
 // NewLock은 설정에 맞는 락 구현을 생성한다.
-func NewLock(cfg config.SchedulerConfig, vendor config.DBVendor, db *sql.DB) (port.SchedulerLock, error) {
+func NewLock(cfg config.SchedulerConfig, vendor config.DBVendor, db *sql.DB) (scheduler.SchedulerLock, error) {
 	switch strings.ToLower(strings.TrimSpace(cfg.LockProvider)) {
 	case "", "none":
 		return noopLock{}, nil

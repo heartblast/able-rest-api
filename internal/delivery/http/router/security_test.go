@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"able-rest-api/internal/infra/config"
-	"able-rest-api/internal/infra/persistence"
 	mailmodule "able-rest-api/internal/modules/mail"
 )
 
@@ -16,7 +15,7 @@ func TestSecurityRequests(t *testing.T) {
 	t.Setenv("TEST_APP_API_KEY", key)
 	repo := &contractRepo{}
 	sender := &contractSender{}
-	h := newTestRouter(&config.Config{App: config.AppConfig{Env: "production"}, Security: config.SecurityConfig{APIKeyEnv: "TEST_APP_API_KEY", MaxRequestBodyBytes: 128}}, quietLogger{}, nil, &persistence.Repositories{UserRepository: repo}, mailmodule.NewMailService(true, sender))
+	h := newTestRouter(&config.Config{App: config.AppConfig{Env: "production"}, Security: config.SecurityConfig{APIKeyEnv: "TEST_APP_API_KEY", MaxRequestBodyBytes: 128}}, quietLogger{}, nil, repo, mailmodule.NewMailService(true, sender))
 	cases := []struct {
 		name, path, body, mediaType, token string
 		want                               int
@@ -91,7 +90,7 @@ func TestSecurityRequests(t *testing.T) {
 
 func TestSecurityMissingKeyFailsClosed(t *testing.T) {
 	t.Setenv("TEST_MISSING_KEY", "")
-	h := newTestRouter(&config.Config{App: config.AppConfig{Env: "production"}, Security: config.SecurityConfig{APIKeyEnv: "TEST_MISSING_KEY"}}, quietLogger{}, nil, &persistence.Repositories{}, nil)
+	h := newTestRouter(&config.Config{App: config.AppConfig{Env: "production"}, Security: config.SecurityConfig{APIKeyEnv: "TEST_MISSING_KEY"}}, quietLogger{}, nil, nil, nil)
 	response := httptest.NewRecorder()
 	h.ServeHTTP(response, httptest.NewRequest("GET", "/api/v1/users", nil))
 	if response.Code != 401 {

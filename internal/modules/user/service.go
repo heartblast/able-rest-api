@@ -5,9 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-
-	"able-rest-api/internal/domain/model"
-	"able-rest-api/internal/domain/repository"
 )
 
 var (
@@ -19,16 +16,16 @@ var (
 
 // UserService는 사용자 유스케이스를 담당한다.
 type UserService struct {
-	repo repository.UserRepository
+	repo UserRepository
 }
 
 // NewUserService는 UserService를 생성한다.
-func NewUserService(repo repository.UserRepository) *UserService {
+func NewUserService(repo UserRepository) *UserService {
 	return &UserService{repo: repo}
 }
 
 // CreateUser는 사용자 생성 유스케이스를 처리한다.
-func (s *UserService) CreateUser(ctx context.Context, name, email string) (*model.User, error) {
+func (s *UserService) CreateUser(ctx context.Context, name, email string) (*User, error) {
 	name = strings.TrimSpace(name)
 	email = strings.TrimSpace(strings.ToLower(email))
 
@@ -36,7 +33,7 @@ func (s *UserService) CreateUser(ctx context.Context, name, email string) (*mode
 		return nil, fmt.Errorf("%w: name/email 형식이 올바르지 않습니다", ErrInvalidInput)
 	}
 
-	user := &model.User{
+	user := &User{
 		Name:  name,
 		Email: email,
 	}
@@ -49,7 +46,7 @@ func (s *UserService) CreateUser(ctx context.Context, name, email string) (*mode
 }
 
 // GetUser는 ID로 사용자를 조회한다.
-func (s *UserService) GetUser(ctx context.Context, id int64) (*model.User, error) {
+func (s *UserService) GetUser(ctx context.Context, id int64) (*User, error) {
 	if id <= 0 {
 		return nil, fmt.Errorf("%w: id는 1 이상이어야 합니다", ErrInvalidInput)
 	}
@@ -66,7 +63,7 @@ func (s *UserService) GetUser(ctx context.Context, id int64) (*model.User, error
 }
 
 // ListUsers는 사용자 목록을 조회한다.
-func (s *UserService) ListUsers(ctx context.Context, limit, offset int) ([]model.User, error) {
+func (s *UserService) ListUsers(ctx context.Context, limit, offset int) ([]User, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -77,7 +74,7 @@ func (s *UserService) ListUsers(ctx context.Context, limit, offset int) ([]model
 		offset = 0
 	}
 
-	users, err := s.repo.List(ctx, repository.UserFilter{
+	users, err := s.repo.List(ctx, UserFilter{
 		Limit:  limit,
 		Offset: offset,
 	})

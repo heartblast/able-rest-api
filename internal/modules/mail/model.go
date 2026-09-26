@@ -1,4 +1,4 @@
-package model
+package mail
 
 // MailMessage는 메일 발송 요청 도메인 모델이다.
 type MailMessage struct {

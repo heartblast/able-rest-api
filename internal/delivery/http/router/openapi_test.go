@@ -16,7 +16,6 @@ import (
 
 	"able-rest-api/docs"
 	"able-rest-api/internal/infra/config"
-	"able-rest-api/internal/infra/persistence"
 	mailmodule "able-rest-api/internal/modules/mail"
 	usermodule "able-rest-api/internal/modules/user"
 	"able-rest-api/internal/platform/http/response"
@@ -39,7 +38,7 @@ func TestOpenAPIContractAndRoutes(t *testing.T) {
 		t.Fatalf("expected OpenAPI 3.x, got %q", doc.OpenAPI)
 	}
 
-	r := newTestRouter(&config.Config{Swagger: config.SwaggerConfig{Enabled: true}}, quietLogger{}, nil, &persistence.Repositories{}, nil)
+	r := newTestRouter(&config.Config{Swagger: config.SwaggerConfig{Enabled: true}}, quietLogger{}, nil, nil, nil)
 	recorder := httptest.NewRecorder()
 	r.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/openapi.json", nil))
 	if recorder.Code != http.StatusOK {
@@ -296,7 +295,7 @@ func keys[V any](values map[string]V) []string {
 }
 
 func TestSwaggerUIUsesOpenAPI(t *testing.T) {
-	r := newTestRouter(&config.Config{Swagger: config.SwaggerConfig{Enabled: true}}, quietLogger{}, nil, &persistence.Repositories{}, nil)
+	r := newTestRouter(&config.Config{Swagger: config.SwaggerConfig{Enabled: true}}, quietLogger{}, nil, nil, nil)
 	recorder := httptest.NewRecorder()
 	r.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/swagger/index.html", nil))
 	if recorder.Code != http.StatusOK {

@@ -9,9 +9,6 @@ import (
 	"net/mail"
 	"path/filepath"
 	"strings"
-
-	"able-rest-api/internal/domain/model"
-	"able-rest-api/internal/domain/port"
 )
 
 var (
@@ -30,11 +27,11 @@ const (
 // MailService는 메일 발송 유스케이스를 담당한다.
 type MailService struct {
 	enabled bool
-	sender  port.MailSender
+	sender  MailSender
 }
 
 // NewMailService는 MailService를 생성한다.
-func NewMailService(enabled bool, sender port.MailSender) *MailService {
+func NewMailService(enabled bool, sender MailSender) *MailService {
 	return &MailService{
 		enabled: enabled,
 		sender:  sender,
@@ -42,7 +39,7 @@ func NewMailService(enabled bool, sender port.MailSender) *MailService {
 }
 
 // SendMail은 메일 발송 요청을 검증하고 전송한다.
-func (s *MailService) SendMail(ctx context.Context, message model.MailMessage) (int, error) {
+func (s *MailService) SendMail(ctx context.Context, message MailMessage) (int, error) {
 	if !s.enabled || s.sender == nil {
 		return 0, ErrDisabled
 	}
@@ -143,7 +140,7 @@ func excludeDuplicates(values []string, existing []string) []string {
 	return result
 }
 
-func normalizeAttachments(values []model.MailAttachment) ([]model.MailAttachment, error) {
+func normalizeAttachments(values []MailAttachment) ([]MailAttachment, error) {
 	if len(values) == 0 {
 		return nil, nil
 	}
@@ -151,7 +148,7 @@ func normalizeAttachments(values []model.MailAttachment) ([]model.MailAttachment
 		return nil, fmt.Errorf("%w: attachments는 최대 %d개까지 허용됩니다", ErrInvalidInput, maxAttachmentCount)
 	}
 
-	result := make([]model.MailAttachment, 0, len(values))
+	result := make([]MailAttachment, 0, len(values))
 	totalSize := 0
 
 	for _, value := range values {
@@ -198,7 +195,7 @@ func normalizeAttachments(values []model.MailAttachment) ([]model.MailAttachment
 		}
 		contentType = mediaType
 
-		result = append(result, model.MailAttachment{
+		result = append(result, MailAttachment{
 			Filename:    filename,
 			ContentType: contentType,
 			Content:     decoded,

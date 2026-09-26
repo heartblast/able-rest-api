@@ -51,7 +51,7 @@ func main() {
 	}
 	defer db.Close()
 
-	repos, err := persistence.NewRepositories(cfg.DB.Vendor, db)
+	userRepo, err := persistence.NewUserRepository(cfg.DB.Vendor, db)
 	if err != nil {
 		log.Error("리포지토리 초기화 실패", "error", err)
 		os.Exit(1)
@@ -65,7 +65,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.App.Host, cfg.App.Port),
-		Handler:           router.New(cfg, log, db, usermodule.Routes(usermodule.NewUserService(repos.UserRepository)), mailmodule.Routes(mailService)),
+		Handler:           router.New(cfg, log, db, usermodule.Routes(usermodule.NewUserService(userRepo)), mailmodule.Routes(mailService)),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      45 * time.Second,

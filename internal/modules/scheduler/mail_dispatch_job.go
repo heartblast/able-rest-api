@@ -1,10 +1,8 @@
-package mail
+package scheduler
 
 import (
 	"context"
 	"time"
-
-	"able-rest-api/internal/domain/model"
 )
 
 // MailDispatchJob는 향후 예약 메일 발송 작업을 연결하기 위한 기본 작업이다.
@@ -16,8 +14,8 @@ func NewMailDispatchJob() *MailDispatchJob {
 }
 
 // Definition은 작업 정의를 반환한다.
-func (j *MailDispatchJob) Definition() model.ScheduledJob {
-	return model.ScheduledJob{
+func (j *MailDispatchJob) Definition() ScheduledJob {
+	return ScheduledJob{
 		ID:              "mail-dispatch",
 		Name:            "mail-dispatch",
 		Enabled:         true,

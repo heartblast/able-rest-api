@@ -8,7 +8,6 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"able-rest-api/internal/delivery/http/middleware"
-	"able-rest-api/internal/domain/model"
 	"able-rest-api/internal/platform/http/response"
 )
 
@@ -91,7 +90,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	response.WriteSuccess(w, r, http.StatusCreated, toUserResponse(*user))
 }
 
-func toUserResponse(user model.User) UserResponse {
+func toUserResponse(user User) UserResponse {
 	return UserResponse{
 		ID:        user.ID,
 		Name:      user.Name,

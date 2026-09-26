@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"able-rest-api/internal/delivery/http/middleware"
-	"able-rest-api/internal/domain/model"
 	"able-rest-api/internal/platform/http/response"
 )
 
@@ -30,7 +29,7 @@ func (h *MailHandler) Send(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	message := model.MailMessage{
+	message := MailMessage{
 		To:      req.To,
 		CC:      req.CC,
 		BCC:     req.BCC,
@@ -39,9 +38,9 @@ func (h *MailHandler) Send(w http.ResponseWriter, r *http.Request) {
 		IsHTML:  req.IsHTML,
 	}
 	if len(req.Attachments) > 0 {
-		message.Attachments = make([]model.MailAttachment, 0, len(req.Attachments))
+		message.Attachments = make([]MailAttachment, 0, len(req.Attachments))
 		for _, attachment := range req.Attachments {
-			message.Attachments = append(message.Attachments, model.MailAttachment{
+			message.Attachments = append(message.Attachments, MailAttachment{
 				Filename:      attachment.Filename,
 				ContentType:   attachment.ContentType,
 				ContentBase64: attachment.ContentBase64,

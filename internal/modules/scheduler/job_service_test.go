@@ -1,19 +1,17 @@
-package service
+package scheduler
 
 import (
 	"context"
 	"testing"
 	"time"
-
-	"able-rest-api/internal/domain/model"
 )
 
 type stubScheduledJob struct {
-	definition model.ScheduledJob
+	definition ScheduledJob
 	err        error
 }
 
-func (j *stubScheduledJob) Definition() model.ScheduledJob {
+func (j *stubScheduledJob) Definition() ScheduledJob {
 	return j.definition
 }
 
@@ -22,16 +20,16 @@ func (j *stubScheduledJob) Run(_ context.Context) error {
 }
 
 type stubExecutionStore struct {
-	created []*model.JobExecution
-	updated []*model.JobExecution
+	created []*JobExecution
+	updated []*JobExecution
 }
 
-func (s *stubExecutionStore) Create(_ context.Context, execution *model.JobExecution) error {
+func (s *stubExecutionStore) Create(_ context.Context, execution *JobExecution) error {
 	s.created = append(s.created, execution)
 	return nil
 }
 
-func (s *stubExecutionStore) Update(_ context.Context, execution *model.JobExecution) error {
+func (s *stubExecutionStore) Update(_ context.Context, execution *JobExecution) error {
 	s.updated = append(s.updated, execution)
 	return nil
 }
@@ -39,7 +37,7 @@ func (s *stubExecutionStore) Update(_ context.Context, execution *model.JobExecu
 func TestJobServiceDueJobs(t *testing.T) {
 	store := &stubExecutionStore{}
 	job := &stubScheduledJob{
-		definition: model.ScheduledJob{
+		definition: ScheduledJob{
 			ID:              "job-1",
 			Name:            "job-1",
 			Enabled:         true,
@@ -64,7 +62,7 @@ func TestJobServiceDueJobs(t *testing.T) {
 func TestJobServiceExecutionLifecycle(t *testing.T) {
 	store := &stubExecutionStore{}
 	job := &stubScheduledJob{
-		definition: model.ScheduledJob{
+		definition: ScheduledJob{
 			ID:       "job-1",
 			Name:     "job-1",
 			Enabled:  true,
@@ -88,7 +86,7 @@ func TestJobServiceExecutionLifecycle(t *testing.T) {
 	if len(store.updated) != 1 {
 		t.Fatalf("expected 1 updated execution, got %d", len(store.updated))
 	}
-	if store.updated[0].Status != model.JobExecutionStatusSuccess {
+	if store.updated[0].Status != JobExecutionStatusSuccess {
 		t.Fatalf("expected success status, got %s", store.updated[0].Status)
 	}
 }

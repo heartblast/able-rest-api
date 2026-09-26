@@ -6,9 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"able-rest-api/internal/app/service"
-	"able-rest-api/internal/domain/port"
 	"able-rest-api/internal/infra/config"
+	"able-rest-api/internal/modules/scheduler"
 	"able-rest-api/internal/platform/logger"
 )
 
@@ -16,12 +15,12 @@ import (
 type Runner struct {
 	cfg        config.SchedulerConfig
 	log        logger.Logger
-	jobService *service.JobService
-	lock       port.SchedulerLock
+	jobService *scheduler.JobService
+	lock       scheduler.SchedulerLock
 }
 
 // NewRunner는 Runner를 생성한다.
-func NewRunner(cfg config.SchedulerConfig, log logger.Logger, jobService *service.JobService, lock port.SchedulerLock) *Runner {
+func NewRunner(cfg config.SchedulerConfig, log logger.Logger, jobService *scheduler.JobService, lock scheduler.SchedulerLock) *Runner {
 	return &Runner{
 		cfg:        cfg,
 		log:        log,
@@ -72,7 +71,7 @@ func (r *Runner) runOnce(ctx context.Context, now time.Time) {
 		sem <- struct{}{}
 		wg.Add(1)
 
-		go func(job port.JobRunner) {
+		go func(job scheduler.JobRunner) {
 			defer func() {
 				<-sem
 				wg.Done()
@@ -84,7 +83,7 @@ func (r *Runner) runOnce(ctx context.Context, now time.Time) {
 	wg.Wait()
 }
 
-func (r *Runner) executeJob(ctx context.Context, job port.JobRunner, now time.Time) {
+func (r *Runner) executeJob(ctx context.Context, job scheduler.JobRunner, now time.Time) {
 	definition := job.Definition()
 
 	acquired, release, err := r.lock.Acquire(ctx, definition.ID)

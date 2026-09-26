@@ -23,21 +23,19 @@ import (
 	"github.com/getkin/kin-openapi/routers/legacy"
 
 	"able-rest-api/docs"
-	"able-rest-api/internal/domain/model"
-	"able-rest-api/internal/domain/repository"
 	"able-rest-api/internal/infra/config"
-	"able-rest-api/internal/infra/persistence"
 	mailmodule "able-rest-api/internal/modules/mail"
+	usermodule "able-rest-api/internal/modules/user"
 )
 
 type contractRepo struct {
-	users       []model.User
+	users       []usermodule.User
 	fail        bool
 	createCalls int
-	created     []model.User
+	created     []usermodule.User
 }
 
-func (r *contractRepo) GetByID(_ context.Context, id int64) (*model.User, error) {
+func (r *contractRepo) GetByID(_ context.Context, id int64) (*usermodule.User, error) {
 	if r.fail {
 		return nil, errors.New("repository unavailable")
 	}
@@ -48,12 +46,12 @@ func (r *contractRepo) GetByID(_ context.Context, id int64) (*model.User, error)
 	}
 	return nil, nil
 }
-func (r *contractRepo) List(_ context.Context, filter repository.UserFilter) ([]model.User, error) {
+func (r *contractRepo) List(_ context.Context, filter usermodule.UserFilter) ([]usermodule.User, error) {
 	if r.fail {
 		return nil, errors.New("repository unavailable")
 	}
 	if filter.Offset >= len(r.users) {
-		return []model.User{}, nil
+		return []usermodule.User{}, nil
 	}
 	end := filter.Offset + filter.Limit
 	if end > len(r.users) {
@@ -61,7 +59,7 @@ func (r *contractRepo) List(_ context.Context, filter repository.UserFilter) ([]
 	}
 	return r.users[filter.Offset:end], nil
 }
-func (r *contractRepo) Create(_ context.Context, user *model.User) error {
+func (r *contractRepo) Create(_ context.Context, user *usermodule.User) error {
 	r.createCalls++
 	if r.fail {
 		return errors.New("repository unavailable")
@@ -76,10 +74,10 @@ func (r *contractRepo) Create(_ context.Context, user *model.User) error {
 
 type contractSender struct {
 	fail  bool
-	calls []model.MailMessage
+	calls []mailmodule.MailMessage
 }
 
-func (s *contractSender) Send(_ context.Context, message model.MailMessage) error {
+func (s *contractSender) Send(_ context.Context, message mailmodule.MailMessage) error {
 	s.calls = append(s.calls, message)
 	if s.fail {
 		return errors.New("smtp unavailable")
@@ -263,7 +261,7 @@ func TestRuntimeOpenAPIContract(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			now := time.Date(2026, 4, 6, 10, 0, 0, 0, time.UTC)
-			repo := &contractRepo{users: []model.User{
+			repo := &contractRepo{users: []usermodule.User{
 				{ID: 1, Name: "Alice", Email: "alice@example.com", CreatedAt: now, UpdatedAt: now},
 				{ID: 2, Name: "Bob", Email: "bob@example.com", CreatedAt: now, UpdatedAt: now},
 			}, fail: tc.repoFail}
@@ -274,7 +272,7 @@ func TestRuntimeOpenAPIContract(t *testing.T) {
 				t.Cleanup(func() { _ = db.Close() })
 			}
 			sender := &contractSender{fail: tc.mailFail}
-			handler := newTestRouter(&config.Config{App: config.AppConfig{Env: "test"}, Security: config.SecurityConfig{APIKeyEnv: "CONTRACT_API_KEY", MaxRequestBodyBytes: 1 << 20}}, quietLogger{}, db, &persistence.Repositories{UserRepository: repo}, mailmodule.NewMailService(!tc.mailDisabled, sender))
+			handler := newTestRouter(&config.Config{App: config.AppConfig{Env: "test"}, Security: config.SecurityConfig{APIKeyEnv: "CONTRACT_API_KEY", MaxRequestBodyBytes: 1 << 20}}, quietLogger{}, db, repo, mailmodule.NewMailService(!tc.mailDisabled, sender))
 			request := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
 			if tc.status != 401 {
 				request.Header.Set("X-API-Key", contractKey)
@@ -676,16 +674,16 @@ func TestRuntimeValidatorRejectsContractDrift(t *testing.T) {
 
 func TestSideEffectAssertionsDetectDrift(t *testing.T) {
 	now := time.Date(2026, 4, 6, 10, 0, 0, 0, time.UTC)
-	user := model.User{ID: 3, Name: "Carol", Email: "carol@example.com", CreatedAt: now, UpdatedAt: now}
+	user := usermodule.User{ID: 3, Name: "Carol", Email: "carol@example.com", CreatedAt: now, UpdatedAt: now}
 	rawUser := json.RawMessage(`{"id":3,"name":"Carol","email":"carol@example.com"}`)
 	for _, tc := range []struct {
 		name  string
 		repo  *contractRepo
 		field string
 	}{
-		{"missing write", &contractRepo{users: []model.User{{}, {}}}, "repository writes"},
-		{"duplicate write", &contractRepo{users: []model.User{{}, {}, user, user}, createCalls: 2, created: []model.User{user, user}}, "repository writes"},
-		{"wrong value", &contractRepo{users: []model.User{{}, {}, {ID: 3, Name: "Wrong", Email: user.Email, CreatedAt: now, UpdatedAt: now}}, createCalls: 1, created: []model.User{user}}, "repository stored user"},
+		{"missing write", &contractRepo{users: []usermodule.User{{}, {}}}, "repository writes"},
+		{"duplicate write", &contractRepo{users: []usermodule.User{{}, {}, user, user}, createCalls: 2, created: []usermodule.User{user, user}}, "repository writes"},
+		{"wrong value", &contractRepo{users: []usermodule.User{{}, {}, {ID: 3, Name: "Wrong", Email: user.Email, CreatedAt: now, UpdatedAt: now}}, createCalls: 1, created: []usermodule.User{user}}, "repository stored user"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if err := assertCreatedUser(tc.repo, nil, rawUser); err == nil || !strings.Contains(err.Error(), tc.field) {
@@ -693,15 +691,15 @@ func TestSideEffectAssertionsDetectDrift(t *testing.T) {
 			}
 		})
 	}
-	message := model.MailMessage{To: []string{"user@example.com"}, CC: []string{"team@example.com"}, BCC: []string{"audit@example.com"}, Subject: "Welcome", Body: "Hello", IsHTML: true, Attachments: []model.MailAttachment{{Filename: "guide.txt", ContentType: "text/plain", Content: []byte("Hello")}}}
+	message := mailmodule.MailMessage{To: []string{"user@example.com"}, CC: []string{"team@example.com"}, BCC: []string{"audit@example.com"}, Subject: "Welcome", Body: "Hello", IsHTML: true, Attachments: []mailmodule.MailAttachment{{Filename: "guide.txt", ContentType: "text/plain", Content: []byte("Hello")}}}
 	for _, tc := range []struct {
 		name  string
-		calls []model.MailMessage
+		calls []mailmodule.MailMessage
 		field string
 	}{
 		{"missing send", nil, "SMTP calls"},
-		{"duplicate send", []model.MailMessage{message, message}, "SMTP calls"},
-		{"wrong subject", []model.MailMessage{func() model.MailMessage { m := message; m.Subject = "Wrong"; return m }()}, "SMTP Subject"},
+		{"duplicate send", []mailmodule.MailMessage{message, message}, "SMTP calls"},
+		{"wrong subject", []mailmodule.MailMessage{func() mailmodule.MailMessage { m := message; m.Subject = "Wrong"; return m }()}, "SMTP Subject"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if err := assertSentMail(nil, &contractSender{calls: tc.calls}, json.RawMessage(`{"accepted_recipients":3}`)); err == nil || !strings.Contains(err.Error(), tc.field) {
