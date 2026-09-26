@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -30,8 +31,10 @@ import (
 )
 
 type contractRepo struct {
-	users []model.User
-	fail  bool
+	users       []model.User
+	fail        bool
+	createCalls int
+	created     []model.User
 }
 
 func (r *contractRepo) GetByID(_ context.Context, id int64) (*model.User, error) {
@@ -59,6 +62,7 @@ func (r *contractRepo) List(_ context.Context, filter repository.UserFilter) ([]
 	return r.users[filter.Offset:end], nil
 }
 func (r *contractRepo) Create(_ context.Context, user *model.User) error {
+	r.createCalls++
 	if r.fail {
 		return errors.New("repository unavailable")
 	}
@@ -66,12 +70,17 @@ func (r *contractRepo) Create(_ context.Context, user *model.User) error {
 	user.CreatedAt = time.Date(2026, 4, 6, 10, 0, 0, 0, time.UTC)
 	user.UpdatedAt = user.CreatedAt
 	r.users = append(r.users, *user)
+	r.created = append(r.created, *user)
 	return nil
 }
 
-type contractSender struct{ fail bool }
+type contractSender struct {
+	fail  bool
+	calls []model.MailMessage
+}
 
-func (s contractSender) Send(context.Context, model.MailMessage) error {
+func (s *contractSender) Send(_ context.Context, message model.MailMessage) error {
+	s.calls = append(s.calls, message)
 	if s.fail {
 		return errors.New("smtp unavailable")
 	}
@@ -107,6 +116,7 @@ type runtimeContractCase struct {
 	status                                                           int
 	code                                                             string
 	assertResponse                                                   func(json.RawMessage) error
+	assertSideEffect                                                 func(*contractRepo, *contractSender, json.RawMessage) error
 	invalidRequest                                                   bool
 	repoFail, mailFail, mailDisabled, dbClosed                       bool
 }
@@ -197,7 +207,7 @@ func assertAcceptedRecipients(want int) func(json.RawMessage) error {
 
 func runtimeContractCases() []runtimeContractCase {
 	const userJSON = `{"name":"  Carol  ","email":" CAROL@Example.com "}`
-	const mailJSON = `{"to":["user@example.com"],"cc":["team@example.com"],"bcc":["team@example.com","audit@example.com"],"subject":"Welcome","body":"Hello","is_html":false}`
+	const mailJSON = `{"to":[" User@Example.com ","user@example.com"],"cc":["team@example.com"],"bcc":["team@example.com","audit@example.com"],"subject":" Welcome ","body":" Hello ","is_html":true,"attachments":[{"filename":"../guide.txt","content_type":"text/plain","content_base64":"SGVsbG8="}]}`
 	return []runtimeContractCase{
 		{operationID: "getHealth", contractPath: "/health", kind: successCase, name: "health", method: "GET", path: "/health", status: 200, assertResponse: assertHealthStatus("ok")},
 		{operationID: "getReadiness", contractPath: "/ready", kind: successCase, name: "ready", method: "GET", path: "/ready", status: 200, assertResponse: assertHealthStatus("ready")},
@@ -208,7 +218,7 @@ func runtimeContractCases() []runtimeContractCase {
 		{operationID: "listUsers", contractPath: "/api/v1/users", kind: successCase, name: "list users invalid limit is normalized", method: "GET", path: "/api/v1/users?limit=not-an-integer", status: 200, invalidRequest: true, assertResponse: assertUserList("Alice", "Bob")},
 		{operationID: "listUsers", contractPath: "/api/v1/users", kind: successCase, name: "list users invalid offset is normalized", method: "GET", path: "/api/v1/users?offset=not-an-integer", status: 200, invalidRequest: true, assertResponse: assertUserList("Alice", "Bob")},
 		{operationID: "listUsers", contractPath: "/api/v1/users", kind: errorCase, name: "list users repository error", method: "GET", path: "/api/v1/users", status: 500, code: "INTERNAL_ERROR", repoFail: true},
-		{operationID: "createUser", contractPath: "/api/v1/users", kind: successCase, name: "create user", method: "POST", path: "/api/v1/users", body: userJSON, contentType: "application/json", status: 201, assertResponse: assertUser(3, "Carol", "carol@example.com")},
+		{operationID: "createUser", contractPath: "/api/v1/users", kind: successCase, name: "create user", method: "POST", path: "/api/v1/users", body: userJSON, contentType: "application/json", status: 201, assertResponse: assertUser(3, "Carol", "carol@example.com"), assertSideEffect: assertCreatedUser},
 		{operationID: "createUser", contractPath: "/api/v1/users", kind: errorCase, name: "create user invalid body", method: "POST", path: "/api/v1/users", body: `{"name":"","email":"bad"}`, contentType: "application/json", status: 400, code: "VALIDATION_ERROR", invalidRequest: true},
 		{operationID: "createUser", contractPath: "/api/v1/users", kind: errorCase, name: "create user missing required field", method: "POST", path: "/api/v1/users", body: `{"name":"Alice"}`, contentType: "application/json", status: 400, code: "VALIDATION_ERROR", invalidRequest: true},
 		{operationID: "createUser", contractPath: "/api/v1/users", kind: errorCase, name: "create user missing required body", method: "POST", path: "/api/v1/users", contentType: "application/json", status: 400, code: "INVALID_JSON", invalidRequest: true},
@@ -220,7 +230,7 @@ func runtimeContractCases() []runtimeContractCase {
 		{operationID: "getUser", contractPath: "/api/v1/users/{id}", kind: errorCase, name: "get user invalid path type", method: "GET", path: "/api/v1/users/nope", status: 400, code: "INVALID_ID", invalidRequest: true},
 		{operationID: "getUser", contractPath: "/api/v1/users/{id}", kind: errorCase, name: "get user invalid path minimum", method: "GET", path: "/api/v1/users/0", status: 400, code: "VALIDATION_ERROR", invalidRequest: true},
 		{operationID: "getUser", contractPath: "/api/v1/users/{id}", kind: errorCase, name: "get user repository error", method: "GET", path: "/api/v1/users/1", status: 500, code: "INTERNAL_ERROR", repoFail: true},
-		{operationID: "sendMail", contractPath: "/api/v1/mail/send", kind: successCase, name: "send mail", method: "POST", path: "/api/v1/mail/send", body: mailJSON, contentType: "application/json", status: 202, assertResponse: assertAcceptedRecipients(3)},
+		{operationID: "sendMail", contractPath: "/api/v1/mail/send", kind: successCase, name: "send mail", method: "POST", path: "/api/v1/mail/send", body: mailJSON, contentType: "application/json", status: 202, assertResponse: assertAcceptedRecipients(3), assertSideEffect: assertSentMail},
 		{operationID: "sendMail", contractPath: "/api/v1/mail/send", kind: errorCase, name: "send mail invalid body", method: "POST", path: "/api/v1/mail/send", body: `{"to":[],"subject":"","body":""}`, contentType: "application/json", status: 400, code: "VALIDATION_ERROR", invalidRequest: true},
 		{operationID: "sendMail", contractPath: "/api/v1/mail/send", kind: errorCase, name: "send mail missing required field", method: "POST", path: "/api/v1/mail/send", body: `{"subject":"Hello","body":"Hello"}`, contentType: "application/json", status: 400, code: "VALIDATION_ERROR", invalidRequest: true},
 		{operationID: "sendMail", contractPath: "/api/v1/mail/send", kind: errorCase, name: "send mail unsupported media", method: "POST", path: "/api/v1/mail/send", body: mailJSON, contentType: "text/plain", status: 415, code: "UNSUPPORTED_MEDIA_TYPE", invalidRequest: true},
@@ -255,7 +265,8 @@ func TestRuntimeOpenAPIContract(t *testing.T) {
 			} else {
 				t.Cleanup(func() { _ = db.Close() })
 			}
-			handler := New(&config.Config{}, quietLogger{}, db, &persistence.Repositories{UserRepository: repo}, service.NewMailService(!tc.mailDisabled, contractSender{fail: tc.mailFail}))
+			sender := &contractSender{fail: tc.mailFail}
+			handler := New(&config.Config{}, quietLogger{}, db, &persistence.Repositories{UserRepository: repo}, service.NewMailService(!tc.mailDisabled, sender))
 			request := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
 			if tc.contentType != "" {
 				request.Header.Set("Content-Type", tc.contentType)
@@ -334,6 +345,27 @@ func TestRuntimeOpenAPIContract(t *testing.T) {
 					t.Fatalf("%s: error details %s, want code %s", label, envelope["error"], tc.code)
 				}
 			}
+			if tc.assertSideEffect != nil {
+				if err := tc.assertSideEffect(repo, sender, envelope["data"]); err != nil {
+					t.Fatalf("%s: side effect: %v", label, err)
+				}
+			} else if tc.operationID == "createUser" {
+				want := 0
+				if tc.repoFail {
+					want = 1
+				}
+				if repo.createCalls != want || len(repo.created) != 0 || len(repo.users) != 2 {
+					t.Fatalf("%s: repository attempts/stored = %d/%d, want %d/0", label, repo.createCalls, len(repo.created), want)
+				}
+			} else if tc.operationID == "sendMail" {
+				want := 0
+				if tc.mailFail {
+					want = 1
+				}
+				if len(sender.calls) != want {
+					t.Fatalf("%s: SMTP calls = %d, want %d", label, len(sender.calls), want)
+				}
+			}
 			if tc.kind == successCase {
 				if err := assertSemanticResponse(tc, envelope["data"]); err != nil {
 					t.Fatal(err)
@@ -341,6 +373,56 @@ func TestRuntimeOpenAPIContract(t *testing.T) {
 			}
 		})
 	}
+}
+
+func assertCreatedUser(repo *contractRepo, _ *contractSender, raw json.RawMessage) error {
+	if repo.createCalls != 1 || len(repo.created) != 1 || len(repo.users) != 3 {
+		return fmt.Errorf("repository writes/stored users = %d/%d, want 1/3", repo.createCalls, len(repo.users))
+	}
+	var response contractUserData
+	if err := json.Unmarshal(raw, &response); err != nil {
+		return err
+	}
+	saved := repo.users[2]
+	if saved != repo.created[0] || saved.ID != response.ID || saved.Name != response.Name || saved.Email != response.Email {
+		return fmt.Errorf("repository stored user = %+v, response id/name/email = %d/%q/%q", saved, response.ID, response.Name, response.Email)
+	}
+	return nil
+}
+
+func assertSentMail(_ *contractRepo, sender *contractSender, raw json.RawMessage) error {
+	if len(sender.calls) != 1 {
+		return fmt.Errorf("SMTP calls = %d, want 1", len(sender.calls))
+	}
+	got := sender.calls[0]
+	for _, field := range []struct {
+		name      string
+		got, want any
+	}{
+		{"To", got.To, []string{"user@example.com"}}, {"CC", got.CC, []string{"team@example.com"}}, {"BCC", got.BCC, []string{"audit@example.com"}},
+		{"Subject", got.Subject, "Welcome"}, {"Body", got.Body, "Hello"}, {"IsHTML", got.IsHTML, true},
+	} {
+		if !reflect.DeepEqual(field.got, field.want) {
+			return fmt.Errorf("SMTP %s = %v, want %v", field.name, field.got, field.want)
+		}
+	}
+	if len(got.Attachments) != 1 {
+		return fmt.Errorf("SMTP attachments = %d, want 1", len(got.Attachments))
+	}
+	a := got.Attachments[0]
+	if a.Filename != "guide.txt" || a.ContentType != "text/plain" || string(a.Content) != "Hello" {
+		return fmt.Errorf("SMTP attachment = %+v, want guide.txt/text/plain/Hello", a)
+	}
+	var response struct {
+		AcceptedRecipients int `json:"accepted_recipients"`
+	}
+	if err := json.Unmarshal(raw, &response); err != nil {
+		return err
+	}
+	if response.AcceptedRecipients != len(got.To)+len(got.CC)+len(got.BCC) {
+		return fmt.Errorf("accepted_recipients = %d, SMTP recipients = %d", response.AcceptedRecipients, len(got.To)+len(got.CC)+len(got.BCC))
+	}
+	return nil
 }
 
 func assertSemanticResponse(tc runtimeContractCase, data json.RawMessage) error {
@@ -571,6 +653,43 @@ func TestRuntimeValidatorRejectsContractDrift(t *testing.T) {
 			result.SetBodyBytes([]byte(tc.body))
 			if err := openapi3filter.ValidateResponse(context.Background(), result); err == nil {
 				t.Fatal("validator accepted contract drift")
+			}
+		})
+	}
+}
+
+func TestSideEffectAssertionsDetectDrift(t *testing.T) {
+	now := time.Date(2026, 4, 6, 10, 0, 0, 0, time.UTC)
+	user := model.User{ID: 3, Name: "Carol", Email: "carol@example.com", CreatedAt: now, UpdatedAt: now}
+	rawUser := json.RawMessage(`{"id":3,"name":"Carol","email":"carol@example.com"}`)
+	for _, tc := range []struct {
+		name  string
+		repo  *contractRepo
+		field string
+	}{
+		{"missing write", &contractRepo{users: []model.User{{}, {}}}, "repository writes"},
+		{"duplicate write", &contractRepo{users: []model.User{{}, {}, user, user}, createCalls: 2, created: []model.User{user, user}}, "repository writes"},
+		{"wrong value", &contractRepo{users: []model.User{{}, {}, {ID: 3, Name: "Wrong", Email: user.Email, CreatedAt: now, UpdatedAt: now}}, createCalls: 1, created: []model.User{user}}, "repository stored user"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := assertCreatedUser(tc.repo, nil, rawUser); err == nil || !strings.Contains(err.Error(), tc.field) {
+				t.Fatalf("createUser: want %s mismatch, got %v", tc.field, err)
+			}
+		})
+	}
+	message := model.MailMessage{To: []string{"user@example.com"}, CC: []string{"team@example.com"}, BCC: []string{"audit@example.com"}, Subject: "Welcome", Body: "Hello", IsHTML: true, Attachments: []model.MailAttachment{{Filename: "guide.txt", ContentType: "text/plain", Content: []byte("Hello")}}}
+	for _, tc := range []struct {
+		name  string
+		calls []model.MailMessage
+		field string
+	}{
+		{"missing send", nil, "SMTP calls"},
+		{"duplicate send", []model.MailMessage{message, message}, "SMTP calls"},
+		{"wrong subject", []model.MailMessage{func() model.MailMessage { m := message; m.Subject = "Wrong"; return m }()}, "SMTP Subject"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := assertSentMail(nil, &contractSender{calls: tc.calls}, json.RawMessage(`{"accepted_recipients":3}`)); err == nil || !strings.Contains(err.Error(), tc.field) {
+				t.Fatalf("sendMail: want %s mismatch, got %v", tc.field, err)
 			}
 		})
 	}
