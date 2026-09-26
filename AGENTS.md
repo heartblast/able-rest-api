@@ -14,6 +14,7 @@
 - `cmd/server`, `cmd/scheduler`, `cmd/migrate`, `cmd/secretenc`: 실행 진입점. 현재 `cmd/migrate`는 마이그레이션 디렉터리만 확인하며 SQL을 실행하지 않는다.
 - `internal/domain`: 모델·포트·저장소 계약. `internal/app/service`: 입력 검증과 유스케이스. `internal/delivery/http`: DTO·핸들러·미들웨어·라우터. `internal/infra`: DB·SMTP·설정·스케줄러 구현.
 - 새 HTTP 기능은 서비스에 업무 규칙을 두고 핸들러는 요청/응답 변환에 집중한다. DB 접근과 외부 통신은 infra 구현 및 포트를 통해 연결한다.
+- 소스 코드에 새로 작성하거나 수정하는 주석은 한국어로 쓴다. Go 문서 주석, 인라인 주석, `TODO`에도 적용하며 식별자와 표준 기술 용어는 원문을 유지해도 된다. 작업과 무관한 기존 주석은 일괄 변경하지 않는다.
 - 실제 DB 어댑터는 PostgreSQL과 MySQL이다. Oracle과 HSQLDB는 현재 스텁이므로 완성된 지원으로 가정하거나 안내하지 않는다.
 - 운영 설정은 `internal/infra/config/config.go`에서 검증한다. 예시를 바꾸면 `configs/app.example.yaml`과 필요한 사용법 문서도 맞춘다. 실제 `configs/app.yaml`, `.env`, 키, 암호문 원문은 커밋하지 않는다.
 
