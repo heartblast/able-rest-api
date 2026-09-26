@@ -11,8 +11,10 @@ import (
 
 	"able-rest-api/internal/infra/config"
 	"able-rest-api/internal/infra/db/factory"
+	mailinfra "able-rest-api/internal/infra/mail"
 	schedulerinfra "able-rest-api/internal/infra/scheduler"
 	"able-rest-api/internal/infra/security"
+	mailmodule "able-rest-api/internal/modules/mail"
 	"able-rest-api/internal/modules/scheduler"
 	"able-rest-api/internal/platform/logger"
 )
@@ -54,9 +56,25 @@ func main() {
 		os.Exit(1)
 	}
 
+	var mailSender mailmodule.MailSender
+	if cfg.SMTP.Enabled {
+		mailSender = mailinfra.NewSMTPSender(cfg.SMTP)
+	}
+	mailService := mailmodule.NewMailService(cfg.SMTP.Enabled, mailSender)
+	mailCfg := cfg.Scheduler.MailDispatch
+	attachments := make([]mailmodule.MailAttachment, 0, len(mailCfg.Attachments))
+	for _, attachment := range mailCfg.Attachments {
+		attachments = append(attachments, mailmodule.MailAttachment{
+			Filename: attachment.Filename, ContentType: attachment.ContentType, ContentBase64: attachment.ContentBase64,
+		})
+	}
+	mailCommand := mailmodule.NewScheduledDispatch(mailService, mailmodule.MailMessage{
+		To: mailCfg.To, CC: mailCfg.CC, BCC: mailCfg.BCC,
+		Subject: mailCfg.Subject, Body: mailCfg.Body, IsHTML: mailCfg.IsHTML, Attachments: attachments,
+	})
 	jobService := scheduler.NewJobService(
 		schedulerinfra.NewExecutionRepository(cfg.DB.Vendor, db),
-		scheduler.NewMailDispatchJob(),
+		scheduler.NewMailDispatchJob(mailCommand, mailCfg.Enabled, mailCfg.Interval),
 	)
 
 	runner := schedulerinfra.NewRunner(cfg.Scheduler, log, jobService, lock)

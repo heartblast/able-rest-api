@@ -25,15 +25,23 @@ func (l *PostgresLock) Acquire(ctx context.Context, jobID string) (bool, func() 
 	}
 
 	key := int64(crc32.ChecksumIEEE([]byte(jobID)))
+	tx, err := l.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, nil, fmt.Errorf("postgres lock transaction failed: %w", err)
+	}
 	var acquired bool
-	if err := l.db.QueryRowContext(ctx, "SELECT pg_try_advisory_lock($1)", key).Scan(&acquired); err != nil {
-		return false, nil, fmt.Errorf("pg_try_advisory_lock failed: %w", err)
+	if err := tx.QueryRowContext(ctx, "SELECT pg_try_advisory_xact_lock($1)", key).Scan(&acquired); err != nil {
+		_ = tx.Rollback()
+		return false, nil, fmt.Errorf("pg_try_advisory_xact_lock failed: %w", err)
+	}
+	if !acquired {
+		_ = tx.Rollback()
+		return false, nil, nil
 	}
 
 	release := func() error {
-		var released bool
-		if err := l.db.QueryRowContext(context.Background(), "SELECT pg_advisory_unlock($1)", key).Scan(&released); err != nil {
-			return fmt.Errorf("pg_advisory_unlock failed: %w", err)
+		if err := tx.Rollback(); err != nil {
+			return fmt.Errorf("postgres lock rollback failed: %w", err)
 		}
 		return nil
 	}

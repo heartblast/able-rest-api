@@ -34,6 +34,16 @@ smtp:
 
 scheduler:
   enabled: false
+  mail_dispatch:
+    enabled: false
+    interval: "1h"
+    to: []
+    cc: []
+    bcc: []
+    subject: ""
+    body: ""
+    is_html: false
+    attachments: []
   poll_interval: "10s"
   timezone: "Asia/Seoul"
   runner_id: "scheduler-1"

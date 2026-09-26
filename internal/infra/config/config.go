@@ -73,13 +73,32 @@ type SMTPConfig struct {
 }
 
 type SchedulerConfig struct {
-	Enabled         bool          `yaml:"enabled"`
-	PollInterval    time.Duration `yaml:"poll_interval"`
-	Timezone        string        `yaml:"timezone"`
-	RunnerID        string        `yaml:"runner_id"`
-	LockProvider    string        `yaml:"lock_provider"`
-	MaxParallelJobs int           `yaml:"max_parallel_jobs"`
-	ShutdownTimeout time.Duration `yaml:"shutdown_timeout"`
+	Enabled         bool               `yaml:"enabled"`
+	MailDispatch    MailDispatchConfig `yaml:"mail_dispatch"`
+	PollInterval    time.Duration      `yaml:"poll_interval"`
+	Timezone        string             `yaml:"timezone"`
+	RunnerID        string             `yaml:"runner_id"`
+	LockProvider    string             `yaml:"lock_provider"`
+	MaxParallelJobs int                `yaml:"max_parallel_jobs"`
+	ShutdownTimeout time.Duration      `yaml:"shutdown_timeout"`
+}
+
+type MailDispatchConfig struct {
+	Enabled     bool                     `yaml:"enabled"`
+	Interval    time.Duration            `yaml:"interval"`
+	To          []string                 `yaml:"to"`
+	CC          []string                 `yaml:"cc"`
+	BCC         []string                 `yaml:"bcc"`
+	Subject     string                   `yaml:"subject"`
+	Body        string                   `yaml:"body"`
+	IsHTML      bool                     `yaml:"is_html"`
+	Attachments []MailDispatchAttachment `yaml:"attachments"`
+}
+
+type MailDispatchAttachment struct {
+	Filename      string `yaml:"filename"`
+	ContentType   string `yaml:"content_type"`
+	ContentBase64 string `yaml:"content_base64"`
 }
 
 type SecurityConfig struct {
@@ -250,6 +269,14 @@ func (c *Config) Validate() error {
 	}
 
 	if c.Scheduler.Enabled {
+		if c.Scheduler.MailDispatch.Enabled {
+			if !c.SMTP.Enabled {
+				return errors.New("scheduler.mail_dispatch에는 smtp.enabled가 필요합니다")
+			}
+			if c.Scheduler.MailDispatch.Interval <= 0 {
+				return errors.New("scheduler.mail_dispatch.interval은 0보다 커야 합니다")
+			}
+		}
 		if c.Scheduler.PollInterval <= 0 {
 			c.Scheduler.PollInterval = 10 * time.Second
 		}
@@ -279,6 +306,9 @@ func (c *Config) Validate() error {
 		}
 		if strings.EqualFold(c.Scheduler.LockProvider, "postgres") && c.DB.Vendor != DBVendorPostgres {
 			return errors.New("scheduler.lock_provider=postgres는 postgres DB vendor에서만 사용할 수 있습니다")
+		}
+		if strings.EqualFold(c.Scheduler.LockProvider, "postgres") && c.DB.MaxOpenConns < 2 {
+			return errors.New("scheduler.lock_provider=postgres에는 db.max_open_conns가 2 이상 필요합니다")
 		}
 	}
 

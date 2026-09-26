@@ -39,9 +39,11 @@ able-rest-api/
 ## Framework와 업무 모듈 경계
 
 - `internal/modules/user`는 사용자 모델·저장소 계약·서비스·DTO·핸들러·경로를 소유합니다. `internal/modules/mail`은 메일 모델·발송 계약·서비스·DTO·핸들러·경로를 소유합니다.
-- `internal/modules/scheduler`는 작업 정의·실행 이력·러너와 락의 계약·작업 서비스를 소유합니다. 현재 빈 예약 메일 작업 정의도 이곳에 있습니다. DB 저장소, SMTP 발송기, 스케줄러 구현은 각 모듈의 계약을 따릅니다.
+- `internal/modules/scheduler`는 작업 정의·실행 이력·러너와 락의 계약·작업 서비스를 소유합니다. 예약 메일 작업은 메일 모듈의 명령만 호출합니다. DB 저장소, SMTP 발송기, 스케줄러 구현은 각 모듈의 계약을 따릅니다.
 - `internal/delivery/http/router`는 인증이 적용된 `/api/v1` 라우터와 모듈 경로 등록 함수를 조합합니다. 공통 미들웨어와 `internal/platform/http`는 업무 DTO·서비스·핸들러에 의존하지 않습니다.
-- `cmd/server`가 DB·SMTP·서비스를 생성하고 각 모듈의 `Routes`를 공통 라우터에 전달합니다. `cmd/scheduler`는 작업 서비스를 별도로 조립합니다. PostgreSQL/MySQL 저장소와 SMTP 구현은 `internal/infra`에 있습니다.
+- `cmd/server`가 DB·SMTP·서비스를 생성하고 각 모듈의 `Routes`를 공통 라우터에 전달합니다. 별도 프로세스인 `cmd/scheduler`는 메일 서비스와 예약 작업을 조립합니다. PostgreSQL/MySQL 저장소와 SMTP 구현은 `internal/infra`에 있습니다.
+
+`scheduler.mail_dispatch.enabled`를 켜면 `cmd/scheduler`가 설정한 `interval`마다 `to`/`cc`/`bcc`, `subject`, `body`, `is_html`, `attachments`로 메일을 발송합니다. 첨부파일은 `filename`, `content_type`, `content_base64`를 사용합니다. 기본값은 비활성화이며, 이 설정은 반복 발송용입니다. PostgreSQL 락은 여러 스케줄러 프로세스의 동일 작업 동시 실행을 막습니다. `lock_provider: none`에서는 프로세스 사이 중복 실행을 막지 않습니다. 별도 예약 메일 저장소가 없으므로 개별 메일의 일회성 예약과 장애 후 재시도는 지원하지 않습니다.
 
 새 업무 모듈은 `internal/modules/<이름>/`에 모델과 외부 경계 계약, 서비스의 업무 규칙, DTO, HTTP 핸들러, `routes.go`를 추가합니다. 외부 구현이 필요하면 해당 모듈의 인터페이스를 따르는 `internal/infra` 구현을 `cmd/server`에서 주입하고 서비스와 `Routes`를 조립합니다. 공통 라우터는 경로 등록 함수만 받으므로 일반적인 모듈 추가에는 수정할 필요가 없습니다. `docs/openapi.yaml`에 요청·응답과 operationId를 정의하고 `internal/delivery/http/router/runtime_contract_test.go`에 선언된 상태별 정상·오류 사례를 추가한 뒤 `go test ./...`, `go vet ./...`, `go build ./...`, `make openapi-check`를 실행합니다. 기존 URI와 응답 형식은 유지합니다.
 
