@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Able REST API
-  version: 1.0.0
+  version: 1.1.0
   description: 멀티 DB와 암호화된 설정을 지원하는 REST API. 운영 환경의 사용자 및 메일 API는 X-API-Key가 필요하다. JSON 요청의 기본 최대 크기는 30 MiB다.
 paths:
   /health:
