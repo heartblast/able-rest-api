@@ -6,25 +6,12 @@ TARGET="${1:-build}"
 CONFIG="configs/app.yaml"
 VALUE=""
 KEY_ENV="APP_MASTER_KEY"
+OFFLINE=false
 
 SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DIST_DIR="$SCRIPT_ROOT/dist"
 VENDOR_DIR="$SCRIPT_ROOT/vendor"
 VENDOR_MODULES="$VENDOR_DIR/modules.txt"
-
-ORIGINAL_GOPROXY="${GOPROXY-__UNSET__}"
-ORIGINAL_GOSUMDB="${GOSUMDB-__UNSET__}"
-ORIGINAL_GOFLAGS="${GOFLAGS-__UNSET__}"
-ORIGINAL_GONOSUMDB="${GONOSUMDB-__UNSET__}"
-
-restore_env() {
-    if [[ "$ORIGINAL_GOPROXY" == "__UNSET__" ]]; then unset GOPROXY; else export GOPROXY="$ORIGINAL_GOPROXY"; fi
-    if [[ "$ORIGINAL_GOSUMDB" == "__UNSET__" ]]; then unset GOSUMDB; else export GOSUMDB="$ORIGINAL_GOSUMDB"; fi
-    if [[ "$ORIGINAL_GOFLAGS" == "__UNSET__" ]]; then unset GOFLAGS; else export GOFLAGS="$ORIGINAL_GOFLAGS"; fi
-    if [[ "$ORIGINAL_GONOSUMDB" == "__UNSET__" ]]; then unset GONOSUMDB; else export GONOSUMDB="$ORIGINAL_GONOSUMDB"; fi
-}
-
-trap restore_env EXIT
 
 print_usage() {
     cat <<'EOF'
@@ -35,6 +22,7 @@ Options:
   --config <path>     Config path for the run target
   --value <value>     Plain value for the secretenc target
   --key-env <name>    Environment variable name for the secretenc target
+  --offline           Use vendored dependencies without network access
   -h, --help          Show this help message
 EOF
 }
@@ -63,23 +51,25 @@ assert_offline_ready() {
     fi
 }
 
-go_offline() {
-    go "$@"
+go_project() {
+    local command_name="$1"
+    shift
+    go "$command_name" "$GO_MOD_MODE" "$@"
 }
 
 build_targets() {
     mkdir -p "$DIST_DIR"
-    go_offline build -o "$DIST_DIR/server" ./cmd/server
-    go_offline build -o "$DIST_DIR/migrate" ./cmd/migrate
-    go_offline build -o "$DIST_DIR/secretenc" ./cmd/secretenc
+    go_project build -o "$DIST_DIR/server" ./cmd/server
+    go_project build -o "$DIST_DIR/migrate" ./cmd/migrate
+    go_project build -o "$DIST_DIR/secretenc" ./cmd/secretenc
 }
 
 run_tests() {
-    go_offline test ./...
+    go_project test ./...
 }
 
 run_server() {
-    go_offline run ./cmd/server "$CONFIG"
+    go_project run ./cmd/server "$CONFIG"
 }
 
 run_secretenc() {
@@ -88,7 +78,7 @@ run_secretenc() {
         exit 1
     fi
 
-    go_offline run ./cmd/secretenc --value "$VALUE" --key-env "$KEY_ENV"
+    go_project run ./cmd/secretenc --value "$VALUE" --key-env "$KEY_ENV"
 }
 
 parse_args() {
@@ -111,6 +101,10 @@ parse_args() {
                 KEY_ENV="$2"
                 shift 2
                 ;;
+            --offline)
+                OFFLINE=true
+                shift
+                ;;
             -h|--help)
                 print_usage
                 exit 0
@@ -125,36 +119,32 @@ parse_args() {
 }
 
 assert_command_exists go
-assert_offline_ready
 parse_args "$@"
 
 cd "$SCRIPT_ROOT"
-
-export GOPROXY="off"
-export GOSUMDB="off"
-export GONOSUMDB="*"
-
-if [[ -z "${GOFLAGS-}" ]]; then
-    export GOFLAGS="-mod=vendor"
-elif [[ " ${GOFLAGS} " != *" -mod=vendor "* ]]; then
-    export GOFLAGS="${GOFLAGS} -mod=vendor"
+GO_MOD_MODE="-mod=mod"
+if [[ "$OFFLINE" == true ]]; then
+    assert_offline_ready
+    export GOPROXY="off"
+    export GOSUMDB="off"
+    GO_MOD_MODE="-mod=vendor"
 fi
 
 case "$TARGET" in
     build)
-        log_step "Offline Go Build"
+        log_step "Go Build"
         build_targets
         ;;
     test)
-        log_step "Offline Go Test"
+        log_step "Go Test"
         run_tests
         ;;
     run)
-        log_step "Offline Run Server"
+        log_step "Run Server"
         run_server
         ;;
     secretenc)
-        log_step "Offline Encrypt Secret"
+        log_step "Encrypt Secret"
         run_secretenc
         ;;
     -h|--help)

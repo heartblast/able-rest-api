@@ -198,6 +198,8 @@ chmod +x build.sh
 ./build.sh secretenc --value "my-db-password" --key-env APP_MASTER_KEY
 ```
 
+기본 Bash 빌드는 Go 모듈을 사용하므로 `vendor/`가 없어도 실행됩니다. 네트워크 없이 빌드하려면 온라인 환경에서 `go mod vendor`를 실행한 뒤 `./build.sh build --offline`을 사용하세요.
+
 ### 4. 오프라인 PowerShell 스크립트 사용 (`build-offline.ps1`)
 
 `vendor/` 디렉터리와 `vendor/modules.txt`가 준비되어 있으면 네트워크 없이 실행할 수 있습니다.
