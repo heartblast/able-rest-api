@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 
-	"able-rest-api/internal/infra/config"
-	"able-rest-api/internal/infra/db/dialect"
-	"able-rest-api/internal/modules/user"
+	"github.com/heartblast/able-rest-api/internal/infra/config"
+	"github.com/heartblast/able-rest-api/internal/infra/db/dialect"
+	"github.com/heartblast/able-rest-api/internal/modules/user"
 )
 
 // UserRepository는 PostgreSQL 사용자 저장소 구현체다.

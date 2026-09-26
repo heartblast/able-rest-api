@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"able-rest-api/internal/infra/config"
-	mailmodule "able-rest-api/internal/modules/mail"
+	"github.com/heartblast/able-rest-api/internal/infra/config"
+	mailmodule "github.com/heartblast/able-rest-api/internal/modules/mail"
 )
 
 func TestSecurityRequests(t *testing.T) {

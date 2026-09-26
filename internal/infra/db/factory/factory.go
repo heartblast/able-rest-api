@@ -11,7 +11,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/jackc/pgx/v5/stdlib"
 
-	"able-rest-api/internal/infra/config"
+	"github.com/heartblast/able-rest-api/internal/infra/config"
 )
 
 // NewSQLDB는 설정 기반으로 *sql.DB를 생성한다.

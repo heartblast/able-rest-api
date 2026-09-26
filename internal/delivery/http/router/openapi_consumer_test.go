@@ -8,7 +8,7 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 
-	"able-rest-api/docs"
+	"github.com/heartblast/able-rest-api/docs"
 )
 
 // This projects the contract into the inputs a tool generator would expose.

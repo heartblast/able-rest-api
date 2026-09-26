@@ -9,11 +9,11 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 
-	"able-rest-api/docs"
-	custommw "able-rest-api/internal/delivery/http/middleware"
-	"able-rest-api/internal/infra/config"
-	"able-rest-api/internal/platform/http/health"
-	"able-rest-api/internal/platform/logger"
+	"github.com/heartblast/able-rest-api/docs"
+	custommw "github.com/heartblast/able-rest-api/internal/delivery/http/middleware"
+	"github.com/heartblast/able-rest-api/internal/infra/config"
+	"github.com/heartblast/able-rest-api/internal/platform/http/health"
+	"github.com/heartblast/able-rest-api/internal/platform/logger"
 )
 
 // Module은 보호된 API 경로에 업무 라우트를 등록한다.

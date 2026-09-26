@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"able-rest-api/internal/modules/mail"
+	"github.com/heartblast/able-rest-api/internal/modules/mail"
 )
 
 type memoryScheduledMailStore struct {

@@ -3,7 +3,7 @@ package dialect
 import (
 	"fmt"
 
-	"able-rest-api/internal/infra/config"
+	"github.com/heartblast/able-rest-api/internal/infra/config"
 )
 
 // Dialect는 DBMS별 SQL 차이를 격리한다.

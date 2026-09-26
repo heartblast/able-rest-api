@@ -9,8 +9,8 @@ import (
 	"net/textproto"
 	"time"
 
-	"able-rest-api/internal/modules/mail"
-	"able-rest-api/internal/platform/logger"
+	"github.com/heartblast/able-rest-api/internal/modules/mail"
+	"github.com/heartblast/able-rest-api/internal/platform/logger"
 )
 
 // ScheduledMailStatus는 예약 메일의 영속 상태다.

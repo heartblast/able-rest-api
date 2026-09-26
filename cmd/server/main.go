@@ -10,15 +10,15 @@ import (
 	"syscall"
 	"time"
 
-	"able-rest-api/internal/delivery/http/router"
-	"able-rest-api/internal/infra/config"
-	"able-rest-api/internal/infra/db/factory"
-	mailinfra "able-rest-api/internal/infra/mail"
-	"able-rest-api/internal/infra/persistence"
-	"able-rest-api/internal/infra/security"
-	mailmodule "able-rest-api/internal/modules/mail"
-	usermodule "able-rest-api/internal/modules/user"
-	"able-rest-api/internal/platform/logger"
+	"github.com/heartblast/able-rest-api/internal/delivery/http/router"
+	"github.com/heartblast/able-rest-api/internal/infra/config"
+	"github.com/heartblast/able-rest-api/internal/infra/db/factory"
+	mailinfra "github.com/heartblast/able-rest-api/internal/infra/mail"
+	"github.com/heartblast/able-rest-api/internal/infra/persistence"
+	"github.com/heartblast/able-rest-api/internal/infra/security"
+	mailmodule "github.com/heartblast/able-rest-api/internal/modules/mail"
+	usermodule "github.com/heartblast/able-rest-api/internal/modules/user"
+	"github.com/heartblast/able-rest-api/internal/platform/logger"
 )
 
 func main() {

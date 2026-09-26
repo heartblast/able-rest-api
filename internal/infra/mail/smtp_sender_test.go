@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"able-rest-api/internal/infra/config"
-	"able-rest-api/internal/modules/mail"
+	"github.com/heartblast/able-rest-api/internal/infra/config"
+	"github.com/heartblast/able-rest-api/internal/modules/mail"
 )
 
 func TestBuildMessageWithAttachment(t *testing.T) {

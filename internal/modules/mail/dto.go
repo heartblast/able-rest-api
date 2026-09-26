@@ -1,6 +1,6 @@
 package mail
 
-import "able-rest-api/internal/platform/http/response"
+import "github.com/heartblast/able-rest-api/internal/platform/http/response"
 
 // SendMailRequest는 메일 발송 요청 DTO다.
 type SendMailRequest struct {

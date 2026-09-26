@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"able-rest-api/internal/infra/config"
-	"able-rest-api/internal/platform/logger"
+	"github.com/heartblast/able-rest-api/internal/infra/config"
+	"github.com/heartblast/able-rest-api/internal/platform/logger"
 )
 
 func main() {

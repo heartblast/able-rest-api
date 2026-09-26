@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"able-rest-api/internal/infra/config"
-	"able-rest-api/internal/modules/scheduler"
+	"github.com/heartblast/able-rest-api/internal/infra/config"
+	"github.com/heartblast/able-rest-api/internal/modules/scheduler"
 )
 
 type noopLock struct{}

@@ -22,10 +22,10 @@ import (
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/getkin/kin-openapi/routers/legacy"
 
-	"able-rest-api/docs"
-	"able-rest-api/internal/infra/config"
-	mailmodule "able-rest-api/internal/modules/mail"
-	usermodule "able-rest-api/internal/modules/user"
+	"github.com/heartblast/able-rest-api/docs"
+	"github.com/heartblast/able-rest-api/internal/infra/config"
+	mailmodule "github.com/heartblast/able-rest-api/internal/modules/mail"
+	usermodule "github.com/heartblast/able-rest-api/internal/modules/user"
 )
 
 type contractRepo struct {

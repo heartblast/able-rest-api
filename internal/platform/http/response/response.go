@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"able-rest-api/internal/delivery/http/middleware"
+	"github.com/heartblast/able-rest-api/internal/delivery/http/middleware"
 )
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {

@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 
-	"able-rest-api/internal/platform/http/response"
+	"github.com/heartblast/able-rest-api/internal/platform/http/response"
 )
 
 // HealthHandler는 상태 점검 핸들러다.

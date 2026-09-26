@@ -1,4 +1,4 @@
-module able-rest-api
+module github.com/heartblast/able-rest-api
 
 go 1.26.1
 

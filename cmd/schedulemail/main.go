@@ -10,12 +10,12 @@ import (
 	"os"
 	"time"
 
-	"able-rest-api/internal/infra/config"
-	"able-rest-api/internal/infra/db/factory"
-	schedulerinfra "able-rest-api/internal/infra/scheduler"
-	"able-rest-api/internal/infra/security"
-	"able-rest-api/internal/modules/mail"
-	"able-rest-api/internal/modules/scheduler"
+	"github.com/heartblast/able-rest-api/internal/infra/config"
+	"github.com/heartblast/able-rest-api/internal/infra/db/factory"
+	schedulerinfra "github.com/heartblast/able-rest-api/internal/infra/scheduler"
+	"github.com/heartblast/able-rest-api/internal/infra/security"
+	"github.com/heartblast/able-rest-api/internal/modules/mail"
+	"github.com/heartblast/able-rest-api/internal/modules/scheduler"
 )
 
 type scheduleRequest struct {

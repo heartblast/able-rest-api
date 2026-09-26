@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"able-rest-api/internal/modules/user"
+	"github.com/heartblast/able-rest-api/internal/modules/user"
 )
 
 // UserRepository는 HSQLDB 확장 포인트용 skeleton 구현체다.

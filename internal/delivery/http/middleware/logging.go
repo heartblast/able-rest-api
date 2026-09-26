@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"able-rest-api/internal/platform/logger"
+	"github.com/heartblast/able-rest-api/internal/platform/logger"
 )
 
 type responseRecorder struct {

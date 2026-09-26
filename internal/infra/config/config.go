@@ -13,7 +13,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"able-rest-api/internal/infra/security"
+	"github.com/heartblast/able-rest-api/internal/infra/security"
 )
 
 type DBVendor string

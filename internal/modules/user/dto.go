@@ -1,6 +1,6 @@
 package user
 
-import "able-rest-api/internal/platform/http/response"
+import "github.com/heartblast/able-rest-api/internal/platform/http/response"
 
 // CreateUserRequest는 사용자 생성 요청 DTO다.
 type CreateUserRequest struct {

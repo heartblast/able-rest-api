@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"able-rest-api/internal/infra/config"
-	"able-rest-api/internal/modules/mail"
-	job "able-rest-api/internal/modules/scheduler"
+	"github.com/heartblast/able-rest-api/internal/infra/config"
+	"github.com/heartblast/able-rest-api/internal/modules/mail"
+	job "github.com/heartblast/able-rest-api/internal/modules/scheduler"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 

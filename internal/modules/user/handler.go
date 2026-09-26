@@ -7,8 +7,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"able-rest-api/internal/delivery/http/middleware"
-	"able-rest-api/internal/platform/http/response"
+	"github.com/heartblast/able-rest-api/internal/delivery/http/middleware"
+	"github.com/heartblast/able-rest-api/internal/platform/http/response"
 )
 
 // UserHandler는 사용자 HTTP 요청을 처리한다.

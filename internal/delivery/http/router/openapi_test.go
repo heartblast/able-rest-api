@@ -14,11 +14,11 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/go-chi/chi/v5"
 
-	"able-rest-api/docs"
-	"able-rest-api/internal/infra/config"
-	mailmodule "able-rest-api/internal/modules/mail"
-	usermodule "able-rest-api/internal/modules/user"
-	"able-rest-api/internal/platform/http/response"
+	"github.com/heartblast/able-rest-api/docs"
+	"github.com/heartblast/able-rest-api/internal/infra/config"
+	mailmodule "github.com/heartblast/able-rest-api/internal/modules/mail"
+	usermodule "github.com/heartblast/able-rest-api/internal/modules/user"
+	"github.com/heartblast/able-rest-api/internal/platform/http/response"
 )
 
 type quietLogger struct{}

@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"able-rest-api/internal/delivery/http/middleware"
-	"able-rest-api/internal/platform/http/response"
+	"github.com/heartblast/able-rest-api/internal/delivery/http/middleware"
+	"github.com/heartblast/able-rest-api/internal/platform/http/response"
 )
 
 // MailHandler는 메일 발송 HTTP 요청을 처리한다.

@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"able-rest-api/internal/infra/config"
-	"able-rest-api/internal/modules/scheduler"
-	"able-rest-api/internal/platform/logger"
+	"github.com/heartblast/able-rest-api/internal/infra/config"
+	"github.com/heartblast/able-rest-api/internal/modules/scheduler"
+	"github.com/heartblast/able-rest-api/internal/platform/logger"
 )
 
 // Runner는 주기적으로 due job을 실행한다.
