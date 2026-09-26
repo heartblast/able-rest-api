@@ -63,9 +63,13 @@ func main() {
 	mailService := service.NewMailService(cfg.SMTP.Enabled, mailSender)
 
 	srv := &http.Server{
-		Addr:              fmt.Sprintf(":%d", cfg.App.Port),
+		Addr:              fmt.Sprintf("%s:%d", cfg.App.Host, cfg.App.Port),
 		Handler:           router.New(cfg, log, db, repos, mailService),
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      45 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    16 << 10,
 	}
 
 	errCh := make(chan error, 1)

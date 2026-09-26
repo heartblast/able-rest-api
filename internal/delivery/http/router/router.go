@@ -27,6 +27,7 @@ func New(cfg *config.Config, log logger.Logger, db *sql.DB, repos *persistence.R
 	r.Use(chimiddleware.Recoverer)
 	r.Use(chimiddleware.Timeout(30 * time.Second))
 	r.Use(custommw.JSONContentType)
+	r.Use(custommw.LimitJSONBody(cfg.Security.MaxRequestBodyBytes))
 
 	healthHandler := handler.NewHealthHandler(db)
 	userHandler := handler.NewUserHandler(service.NewUserService(repos.UserRepository))
@@ -34,12 +35,13 @@ func New(cfg *config.Config, log logger.Logger, db *sql.DB, repos *persistence.R
 
 	r.Get("/health", healthHandler.Health)
 	r.Get("/ready", healthHandler.Ready)
-	r.Get("/openapi.json", func(w http.ResponseWriter, _ *http.Request) {
+	r.With(custommw.APIKey(cfg.App.Env, cfg.Security.APIKeyEnv)).Get("/openapi.json", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_, _ = w.Write(docs.OpenAPIJSON)
 	})
 
 	r.Route("/api/v1", func(api chi.Router) {
+		api.Use(custommw.APIKey(cfg.App.Env, cfg.Security.APIKeyEnv))
 		api.Route("/users", func(users chi.Router) {
 			users.Get("/", userHandler.ListUsers)
 			users.Post("/", userHandler.CreateUser)
@@ -51,7 +53,7 @@ func New(cfg *config.Config, log logger.Logger, db *sql.DB, repos *persistence.R
 	})
 
 	if cfg.Swagger.Enabled {
-		r.Get("/swagger/*", httpSwagger.Handler(
+		r.With(custommw.APIKey(cfg.App.Env, cfg.Security.APIKeyEnv)).Get("/swagger/*", httpSwagger.Handler(
 			httpSwagger.URL("/openapi.json"),
 		))
 	}

@@ -2,6 +2,7 @@ app:
   name: "able-rest-api"
   port: 8080
   env: "local"
+  host: "127.0.0.1"
 
 swagger:
   enabled: true
@@ -43,3 +44,5 @@ scheduler:
 security:
   secret_provider: "local_encryption"
   master_key_env: "APP_MASTER_KEY"
+  api_key_env: "APP_API_KEY"
+  max_request_body_bytes: 31457280

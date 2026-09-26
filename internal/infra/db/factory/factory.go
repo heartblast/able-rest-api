@@ -77,5 +77,5 @@ func sanitizeDBError(err error) error {
 	if err == nil {
 		return nil
 	}
-	return errors.New(err.Error())
+	return errors.New("database connection unavailable")
 }

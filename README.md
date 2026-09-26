@@ -242,6 +242,12 @@ go build ./...
 
 ## OpenAPI 계약
 
+로컬·개발·테스트 환경은 기본적으로 `127.0.0.1`에만 바인딩됩니다. 외부 접속이 필요한 경우 `app.host` 또는 `APP_HOST`를 명시하세요. 운영 환경은 기본적으로 `0.0.0.0`에 바인딩됩니다.
+
+운영 환경에서는 `APP_API_KEY`에 32자 이상의 무작위 값을 설정하고 모든 `/api/v1/*` 요청에 `X-API-Key` 헤더를 전달해야 합니다. `security.api_key_env`로 환경 변수 이름을 바꿀 수 있습니다. 로컬·개발·테스트 환경에서도 해당 환경 변수에 값이 있으면 API 키 검사가 적용됩니다. `/openapi.json`과 활성화된 `/swagger/*`도 키로 보호되며 `/health`, `/ready`는 공개 상태 확인 경로입니다. Swagger UI는 보호된 OpenAPI 문서를 자동으로 읽지 못할 수 있으므로 운영 환경에서는 `swagger.enabled: false`를 권장합니다.
+
+JSON 요청 본문은 기본 30 MiB로 제한하며 `security.max_request_body_bytes` 또는 `SECURITY_MAX_REQUEST_BODY_BYTES`로 1~100 MiB 범위에서 조절할 수 있습니다. 운영 환경의 설정 파일은 Unix에서 소유자 전용 권한(예: `chmod 600 configs/app.yaml`)을 사용해야 합니다. PostgreSQL은 `db.sslmode: verify-full`, MySQL은 `db.sslmode: "true"`가 필요하고, SMTP를 사용하면 TLS 또는 STARTTLS가 필요합니다. API 키는 HTTPS 종단 프록시 또는 HTTPS 연결을 통해서만 전달하세요. 키 교체 후 서버를 재시작해야 새 값이 적용됩니다.
+
 `docs/openapi.yaml`이 OpenAPI 3.0 계약의 단일 원본입니다. 서버는 이 파일을 포함하고 JSON으로 변환하여 `GET /openapi.json`에서 제공합니다. 기존 `docs/docs.go`, `docs/swagger.json`, `docs/swagger.yaml`은 Swagger 2.0 생성 산출물이었으며 제거했습니다. Handler의 Swagger 주석을 다시 생성하지 않습니다.
 
 API의 router, handler, DTO 또는 `docs/openapi.yaml`을 변경한 뒤 다음 명령을 실행합니다. CI도 push와 pull request마다 같은 세 명령을 필수 실행합니다.

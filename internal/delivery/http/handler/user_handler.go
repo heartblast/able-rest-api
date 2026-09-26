@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -10,6 +9,7 @@ import (
 
 	"able-rest-api/internal/app/service"
 	"able-rest-api/internal/delivery/http/dto"
+	"able-rest-api/internal/delivery/http/middleware"
 	"able-rest-api/internal/domain/model"
 )
 
@@ -69,7 +69,11 @@ func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreateUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := middleware.DecodeJSON(r, &req); err != nil {
+		if middleware.JSONErrorStatus(err) == http.StatusRequestEntityTooLarge {
+			writeError(w, r, http.StatusRequestEntityTooLarge, "REQUEST_TOO_LARGE", "요청 본문이 너무 큽니다")
+			return
+		}
 		writeError(w, r, http.StatusBadRequest, "INVALID_JSON", "JSON 본문이 올바르지 않습니다")
 		return
 	}

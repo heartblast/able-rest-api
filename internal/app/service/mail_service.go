@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"mime"
 	"net/mail"
 	"path/filepath"
 	"strings"
@@ -21,6 +22,7 @@ const (
 	maxAttachmentCount     = 5
 	maxAttachmentSizeBytes = 5 * 1024 * 1024
 	maxTotalAttachmentSize = 20 * 1024 * 1024
+	maxRecipients          = 100
 )
 
 // MailService는 메일 발송 유스케이스를 담당한다.
@@ -55,11 +57,17 @@ func (s *MailService) SendMail(ctx context.Context, message model.MailMessage) (
 	if err != nil {
 		return 0, err
 	}
+	if len(message.To)+len(message.CC)+len(message.BCC) > maxRecipients {
+		return 0, fmt.Errorf("%w: 수신자는 최대 %d명까지 허용됩니다", ErrInvalidInput, maxRecipients)
+	}
 
 	subject := strings.TrimSpace(message.Subject)
 	body := strings.TrimSpace(message.Body)
 	if subject == "" {
 		return 0, fmt.Errorf("%w: subject는 필수입니다", ErrInvalidInput)
+	}
+	if hasHeaderControl(subject) {
+		return 0, fmt.Errorf("%w: subject에 제어 문자를 사용할 수 없습니다", ErrInvalidInput)
 	}
 	if body == "" {
 		return 0, fmt.Errorf("%w: body는 필수입니다", ErrInvalidInput)
@@ -93,7 +101,8 @@ func normalizeAddresses(values []string, required bool) ([]string, error) {
 		if normalized == "" {
 			continue
 		}
-		if _, err := mail.ParseAddress(normalized); err != nil {
+		address, err := mail.ParseAddress(normalized)
+		if err != nil || address.Address != normalized || hasHeaderControl(normalized) {
 			return nil, fmt.Errorf("%w: 이메일 형식이 올바르지 않습니다", ErrInvalidInput)
 		}
 		if _, exists := seen[normalized]; exists {
@@ -148,6 +157,9 @@ func normalizeAttachments(values []model.MailAttachment) ([]model.MailAttachment
 		if filename == "" {
 			return nil, fmt.Errorf("%w: attachment.filename은 필수입니다", ErrInvalidInput)
 		}
+		if hasHeaderControl(filename) {
+			return nil, fmt.Errorf("%w: attachment.filename이 올바르지 않습니다", ErrInvalidInput)
+		}
 		filename = filepath.Base(filename)
 		if filename == "." || filename == "" {
 			return nil, fmt.Errorf("%w: attachment.filename이 올바르지 않습니다", ErrInvalidInput)
@@ -178,6 +190,11 @@ func normalizeAttachments(values []model.MailAttachment) ([]model.MailAttachment
 		if contentType == "" {
 			contentType = "application/octet-stream"
 		}
+		mediaType, params, err := mime.ParseMediaType(contentType)
+		if err != nil || len(params) != 0 || hasHeaderControl(contentType) {
+			return nil, fmt.Errorf("%w: attachment.content_type이 올바르지 않습니다", ErrInvalidInput)
+		}
+		contentType = mediaType
 
 		result = append(result, model.MailAttachment{
 			Filename:    filename,
@@ -187,4 +204,13 @@ func normalizeAttachments(values []model.MailAttachment) ([]model.MailAttachment
 	}
 
 	return result, nil
+}
+
+func hasHeaderControl(value string) bool {
+	for _, ch := range value {
+		if ch < 32 || ch == 127 {
+			return true
+		}
+	}
+	return false
 }

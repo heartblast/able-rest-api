@@ -213,12 +213,15 @@ func runtimeContractCases() []runtimeContractCase {
 		{operationID: "getReadiness", contractPath: "/ready", kind: successCase, name: "ready", method: "GET", path: "/ready", status: 200, assertResponse: assertHealthStatus("ready")},
 		{operationID: "getReadiness", contractPath: "/ready", kind: errorCase, name: "ready unavailable", method: "GET", path: "/ready", status: 503, code: "DB_NOT_READY", dbClosed: true},
 		{operationID: "listUsers", contractPath: "/api/v1/users", kind: successCase, name: "list users", method: "GET", path: "/api/v1/users?limit=1&offset=0", status: 200, assertResponse: assertUserList("Alice")},
+		{operationID: "listUsers", contractPath: "/api/v1/users", kind: errorCase, name: "list users unauthorized", method: "GET", path: "/api/v1/users", status: 401, code: "UNAUTHORIZED", invalidRequest: true},
 		{operationID: "listUsers", contractPath: "/api/v1/users", kind: successCase, name: "list users offset", method: "GET", path: "/api/v1/users?limit=1&offset=1", status: 200, assertResponse: assertUserList("Bob")},
 		{operationID: "listUsers", contractPath: "/api/v1/users", kind: successCase, name: "list users empty page", method: "GET", path: "/api/v1/users?offset=99", status: 200, assertResponse: assertUserList()},
 		{operationID: "listUsers", contractPath: "/api/v1/users", kind: successCase, name: "list users invalid limit is normalized", method: "GET", path: "/api/v1/users?limit=not-an-integer", status: 200, invalidRequest: true, assertResponse: assertUserList("Alice", "Bob")},
 		{operationID: "listUsers", contractPath: "/api/v1/users", kind: successCase, name: "list users invalid offset is normalized", method: "GET", path: "/api/v1/users?offset=not-an-integer", status: 200, invalidRequest: true, assertResponse: assertUserList("Alice", "Bob")},
 		{operationID: "listUsers", contractPath: "/api/v1/users", kind: errorCase, name: "list users repository error", method: "GET", path: "/api/v1/users", status: 500, code: "INTERNAL_ERROR", repoFail: true},
 		{operationID: "createUser", contractPath: "/api/v1/users", kind: successCase, name: "create user", method: "POST", path: "/api/v1/users", body: userJSON, contentType: "application/json", status: 201, assertResponse: assertUser(3, "Carol", "carol@example.com"), assertSideEffect: assertCreatedUser},
+		{operationID: "createUser", contractPath: "/api/v1/users", kind: errorCase, name: "create user unauthorized", method: "POST", path: "/api/v1/users", body: userJSON, contentType: "application/json", status: 401, code: "UNAUTHORIZED", invalidRequest: true},
+		{operationID: "createUser", contractPath: "/api/v1/users", kind: errorCase, name: "create user oversized", method: "POST", path: "/api/v1/users", body: strings.Repeat("x", 1<<20+1), contentType: "application/json", status: 413, code: "REQUEST_TOO_LARGE", invalidRequest: true},
 		{operationID: "createUser", contractPath: "/api/v1/users", kind: errorCase, name: "create user invalid body", method: "POST", path: "/api/v1/users", body: `{"name":"","email":"bad"}`, contentType: "application/json", status: 400, code: "VALIDATION_ERROR", invalidRequest: true},
 		{operationID: "createUser", contractPath: "/api/v1/users", kind: errorCase, name: "create user missing required field", method: "POST", path: "/api/v1/users", body: `{"name":"Alice"}`, contentType: "application/json", status: 400, code: "VALIDATION_ERROR", invalidRequest: true},
 		{operationID: "createUser", contractPath: "/api/v1/users", kind: errorCase, name: "create user missing required body", method: "POST", path: "/api/v1/users", contentType: "application/json", status: 400, code: "INVALID_JSON", invalidRequest: true},
@@ -226,11 +229,14 @@ func runtimeContractCases() []runtimeContractCase {
 		{operationID: "createUser", contractPath: "/api/v1/users", kind: errorCase, name: "create user unsupported media", method: "POST", path: "/api/v1/users", body: userJSON, contentType: "text/plain", status: 415, code: "UNSUPPORTED_MEDIA_TYPE", invalidRequest: true},
 		{operationID: "createUser", contractPath: "/api/v1/users", kind: errorCase, name: "create user repository error", method: "POST", path: "/api/v1/users", body: userJSON, contentType: "application/json", status: 500, code: "INTERNAL_ERROR", repoFail: true},
 		{operationID: "getUser", contractPath: "/api/v1/users/{id}", kind: successCase, name: "get user", method: "GET", path: "/api/v1/users/1", status: 200, assertResponse: assertUser(1, "Alice", "alice@example.com")},
+		{operationID: "getUser", contractPath: "/api/v1/users/{id}", kind: errorCase, name: "get user unauthorized", method: "GET", path: "/api/v1/users/1", status: 401, code: "UNAUTHORIZED", invalidRequest: true},
 		{operationID: "getUser", contractPath: "/api/v1/users/{id}", kind: errorCase, name: "get user missing", method: "GET", path: "/api/v1/users/42", status: 404, code: "NOT_FOUND"},
 		{operationID: "getUser", contractPath: "/api/v1/users/{id}", kind: errorCase, name: "get user invalid path type", method: "GET", path: "/api/v1/users/nope", status: 400, code: "INVALID_ID", invalidRequest: true},
 		{operationID: "getUser", contractPath: "/api/v1/users/{id}", kind: errorCase, name: "get user invalid path minimum", method: "GET", path: "/api/v1/users/0", status: 400, code: "VALIDATION_ERROR", invalidRequest: true},
 		{operationID: "getUser", contractPath: "/api/v1/users/{id}", kind: errorCase, name: "get user repository error", method: "GET", path: "/api/v1/users/1", status: 500, code: "INTERNAL_ERROR", repoFail: true},
 		{operationID: "sendMail", contractPath: "/api/v1/mail/send", kind: successCase, name: "send mail", method: "POST", path: "/api/v1/mail/send", body: mailJSON, contentType: "application/json", status: 202, assertResponse: assertAcceptedRecipients(3), assertSideEffect: assertSentMail},
+		{operationID: "sendMail", contractPath: "/api/v1/mail/send", kind: errorCase, name: "send mail unauthorized", method: "POST", path: "/api/v1/mail/send", body: mailJSON, contentType: "application/json", status: 401, code: "UNAUTHORIZED", invalidRequest: true},
+		{operationID: "sendMail", contractPath: "/api/v1/mail/send", kind: errorCase, name: "send mail oversized", method: "POST", path: "/api/v1/mail/send", body: strings.Repeat("x", 1<<20+1), contentType: "application/json", status: 413, code: "REQUEST_TOO_LARGE", invalidRequest: true},
 		{operationID: "sendMail", contractPath: "/api/v1/mail/send", kind: errorCase, name: "send mail invalid body", method: "POST", path: "/api/v1/mail/send", body: `{"to":[],"subject":"","body":""}`, contentType: "application/json", status: 400, code: "VALIDATION_ERROR", invalidRequest: true},
 		{operationID: "sendMail", contractPath: "/api/v1/mail/send", kind: errorCase, name: "send mail missing required field", method: "POST", path: "/api/v1/mail/send", body: `{"subject":"Hello","body":"Hello"}`, contentType: "application/json", status: 400, code: "VALIDATION_ERROR", invalidRequest: true},
 		{operationID: "sendMail", contractPath: "/api/v1/mail/send", kind: errorCase, name: "send mail unsupported media", method: "POST", path: "/api/v1/mail/send", body: mailJSON, contentType: "text/plain", status: 415, code: "UNSUPPORTED_MEDIA_TYPE", invalidRequest: true},
@@ -240,6 +246,8 @@ func runtimeContractCases() []runtimeContractCase {
 }
 
 func TestRuntimeOpenAPIContract(t *testing.T) {
+	const contractKey = "runtime-contract-key-with-at-least-32-chars"
+	t.Setenv("CONTRACT_API_KEY", contractKey)
 	doc, err := openapi3.NewLoader().LoadFromData(docs.OpenAPIYAML)
 	if err != nil {
 		t.Fatal(err)
@@ -266,8 +274,11 @@ func TestRuntimeOpenAPIContract(t *testing.T) {
 				t.Cleanup(func() { _ = db.Close() })
 			}
 			sender := &contractSender{fail: tc.mailFail}
-			handler := New(&config.Config{}, quietLogger{}, db, &persistence.Repositories{UserRepository: repo}, service.NewMailService(!tc.mailDisabled, sender))
+			handler := New(&config.Config{App: config.AppConfig{Env: "test"}, Security: config.SecurityConfig{APIKeyEnv: "CONTRACT_API_KEY", MaxRequestBodyBytes: 1 << 20}}, quietLogger{}, db, &persistence.Repositories{UserRepository: repo}, service.NewMailService(!tc.mailDisabled, sender))
 			request := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
+			if tc.status != 401 {
+				request.Header.Set("X-API-Key", contractKey)
+			}
 			if tc.contentType != "" {
 				request.Header.Set("Content-Type", tc.contentType)
 			}
@@ -279,7 +290,12 @@ func TestRuntimeOpenAPIContract(t *testing.T) {
 			if route.Path != tc.contractPath || route.Operation.OperationID != tc.operationID {
 				t.Fatalf("%s: request %s resolved to %s (operationId %s)", label, tc.path, route.Path, route.Operation.OperationID)
 			}
-			input := &openapi3filter.RequestValidationInput{Request: request, Route: route, PathParams: pathParams}
+			input := &openapi3filter.RequestValidationInput{Request: request, Route: route, PathParams: pathParams, Options: &openapi3filter.Options{AuthenticationFunc: func(_ context.Context, auth *openapi3filter.AuthenticationInput) error {
+				if auth.RequestValidationInput.Request.Header.Get("X-API-Key") != contractKey {
+					return errors.New("invalid API key")
+				}
+				return nil
+			}}}
 			requestErr := openapi3filter.ValidateRequest(context.Background(), input)
 			if tc.invalidRequest && requestErr == nil {
 				t.Fatalf("%s: expected request parameter/body validation to fail", label)
@@ -320,7 +336,7 @@ func TestRuntimeOpenAPIContract(t *testing.T) {
 			if tc.code != "" {
 				keys = []string{"success", "request_id", "error"}
 			}
-			if tc.status == 415 {
+			if tc.status == 415 || tc.status == 401 || tc.status == 413 {
 				keys = []string{"success", "error"}
 			}
 			if !sameKeys(envelope, keys) {
@@ -330,7 +346,7 @@ func TestRuntimeOpenAPIContract(t *testing.T) {
 			if err := json.Unmarshal(envelope["success"], &success); err != nil || success != (tc.code == "") {
 				t.Fatalf("%s: success flag %s", label, envelope["success"])
 			}
-			if tc.status != 415 {
+			if tc.status != 415 && tc.status != 401 && tc.status != 413 {
 				var requestID string
 				if err := json.Unmarshal(envelope["request_id"], &requestID); err != nil || strings.TrimSpace(requestID) == "" {
 					t.Fatalf("%s: missing request_id", label)

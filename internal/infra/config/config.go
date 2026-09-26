@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/mail"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -36,6 +38,7 @@ type AppConfig struct {
 	Name string `yaml:"name"`
 	Port int    `yaml:"port"`
 	Env  string `yaml:"env"`
+	Host string `yaml:"host"`
 }
 
 type SwaggerConfig struct {
@@ -80,8 +83,10 @@ type SchedulerConfig struct {
 }
 
 type SecurityConfig struct {
-	SecretProvider string `yaml:"secret_provider"`
-	MasterKeyEnv   string `yaml:"master_key_env"`
+	SecretProvider      string `yaml:"secret_provider"`
+	MasterKeyEnv        string `yaml:"master_key_env"`
+	APIKeyEnv           string `yaml:"api_key_env"`
+	MaxRequestBodyBytes int64  `yaml:"max_request_body_bytes"`
 }
 
 func (c SecurityConfig) GetSecretProvider() string {
@@ -111,6 +116,15 @@ func Load(_ context.Context, path string) (*Config, error) {
 	}
 
 	applyEnvOverride(cfg)
+	if isNonLocalEnv(cfg.App.Env) && runtime.GOOS != "windows" {
+		info, err := os.Stat(path)
+		if err != nil {
+			return nil, fmt.Errorf("설정 파일 확인 실패: %w", err)
+		}
+		if info.Mode().Perm()&0077 != 0 {
+			return nil, errors.New("local 이외 환경에서 설정 파일 권한은 0600 이하여야 합니다")
+		}
+	}
 
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("설정 검증 실패: %w", err)
@@ -145,6 +159,13 @@ func (c *Config) Validate() error {
 	if c.App.Env == "" {
 		return errors.New("app.env는 필수입니다")
 	}
+	if c.App.Host == "" {
+		if isNonLocalEnv(c.App.Env) {
+			c.App.Host = "0.0.0.0"
+		} else {
+			c.App.Host = "127.0.0.1"
+		}
+	}
 	if c.DB.Host == "" {
 		return errors.New("db.host는 필수입니다")
 	}
@@ -176,6 +197,15 @@ func (c *Config) Validate() error {
 	if c.Security.SecretProvider == "" {
 		c.Security.SecretProvider = "plaintext"
 	}
+	if c.Security.APIKeyEnv == "" {
+		c.Security.APIKeyEnv = "APP_API_KEY"
+	}
+	if c.Security.MaxRequestBodyBytes == 0 {
+		c.Security.MaxRequestBodyBytes = 30 << 20
+	}
+	if c.Security.MaxRequestBodyBytes < 1 || c.Security.MaxRequestBodyBytes > 100<<20 {
+		return errors.New("security.max_request_body_bytes는 1 이상 100 MiB 이하여야 합니다")
+	}
 
 	if c.SMTP.Enabled {
 		if c.SMTP.Host == "" {
@@ -186,6 +216,10 @@ func (c *Config) Validate() error {
 		}
 		if c.SMTP.FromAddress == "" {
 			return errors.New("smtp.from_address는 필수입니다")
+		}
+		address, err := mail.ParseAddress(c.SMTP.FromAddress)
+		if err != nil || address.Address != c.SMTP.FromAddress || strings.ContainsAny(c.SMTP.FromName, "\r\n") {
+			return errors.New("smtp 발신자 설정이 올바르지 않습니다")
 		}
 		if c.SMTP.Timeout <= 0 {
 			c.SMTP.Timeout = 10 * time.Second
@@ -249,6 +283,18 @@ func (c *Config) Validate() error {
 	}
 
 	if isNonLocalEnv(c.App.Env) {
+		if len(os.Getenv(c.Security.APIKeyEnv)) < 32 {
+			return errors.New("local 이외 환경에서는 32자 이상의 API key 환경 변수가 필요합니다")
+		}
+		if c.SMTP.Enabled && !c.SMTP.TLS && !c.SMTP.StartTLS {
+			return errors.New("local 이외 환경에서 SMTP TLS가 필요합니다")
+		}
+		if c.DB.Vendor == DBVendorPostgres && c.DB.SSLMode != "verify-full" {
+			return errors.New("local 이외 환경에서 PostgreSQL sslmode=verify-full이 필요합니다")
+		}
+		if c.DB.Vendor == DBVendorMySQL && c.DB.SSLMode != "true" {
+			return errors.New("local 이외 환경에서 MySQL tls=true가 필요합니다")
+		}
 		if strings.EqualFold(strings.TrimSpace(c.Security.SecretProvider), "plaintext") {
 			return errors.New("local 이외 환경에서는 security.secret_provider=plaintext 를 사용할 수 없습니다")
 		}
@@ -274,6 +320,7 @@ func isNonLocalEnv(env string) bool {
 
 func applyEnvOverride(cfg *Config) {
 	overrideString(&cfg.App.Name, "APP_NAME")
+	overrideString(&cfg.App.Host, "APP_HOST")
 	overrideInt(&cfg.App.Port, "APP_PORT")
 	overrideString(&cfg.App.Env, "APP_ENV")
 	overrideBool(&cfg.Swagger.Enabled, "SWAGGER_ENABLED")
@@ -311,6 +358,16 @@ func applyEnvOverride(cfg *Config) {
 
 	overrideString(&cfg.Security.SecretProvider, "SECURITY_SECRET_PROVIDER")
 	overrideString(&cfg.Security.MasterKeyEnv, "SECURITY_MASTER_KEY_ENV")
+	overrideString(&cfg.Security.APIKeyEnv, "SECURITY_API_KEY_ENV")
+	overrideInt64(&cfg.Security.MaxRequestBodyBytes, "SECURITY_MAX_REQUEST_BODY_BYTES")
+}
+
+func overrideInt64(target *int64, key string) {
+	if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+		if parsed, err := strconv.ParseInt(value, 10, 64); err == nil {
+			*target = parsed
+		}
+	}
 }
 
 func overrideString(target *string, key string) {
