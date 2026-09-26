@@ -72,9 +72,20 @@ func main() {
 		To: mailCfg.To, CC: mailCfg.CC, BCC: mailCfg.BCC,
 		Subject: mailCfg.Subject, Body: mailCfg.Body, IsHTML: mailCfg.IsHTML, Attachments: attachments,
 	})
+	jobs := []scheduler.JobRunner{scheduler.NewMailDispatchJob(mailCommand, mailCfg.Enabled, mailCfg.Interval)}
+	if cfg.Scheduler.ScheduledMail.Enabled {
+		store, storeErr := schedulerinfra.NewScheduledMailRepository(cfg.DB.Vendor, db)
+		if storeErr != nil {
+			log.Error("scheduled mail repository init failed", "error", storeErr)
+			os.Exit(1)
+		}
+		mailSchedule := cfg.Scheduler.ScheduledMail
+		jobs = append(jobs, scheduler.NewScheduledMailJob(store, mailmodule.NewMessageDispatch(mailService), true,
+			mailSchedule.Interval, mailSchedule.LeaseDuration, mailSchedule.MaxAttempts, mailSchedule.RetryDelay))
+	}
 	jobService := scheduler.NewJobService(
 		schedulerinfra.NewExecutionRepository(cfg.DB.Vendor, db),
-		scheduler.NewMailDispatchJob(mailCommand, mailCfg.Enabled, mailCfg.Interval),
+		jobs...,
 	)
 
 	runner := schedulerinfra.NewRunner(cfg.Scheduler, log, jobService, lock)

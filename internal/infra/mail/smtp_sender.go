@@ -110,9 +110,8 @@ func (s *SMTPSender) Send(ctx context.Context, message mail.MailMessage) error {
 		return fmt.Errorf("메일 본문 종료 실패: %w", err)
 	}
 
-	if err := client.Quit(); err != nil {
-		return fmt.Errorf("SMTP 종료 실패: %w", err)
-	}
+	// DATA 완료 응답 뒤 종료 오류는 이미 수락된 메일의 재발송 사유가 아니다.
+	_ = client.Quit()
 
 	return nil
 }

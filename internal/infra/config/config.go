@@ -73,14 +73,23 @@ type SMTPConfig struct {
 }
 
 type SchedulerConfig struct {
-	Enabled         bool               `yaml:"enabled"`
-	MailDispatch    MailDispatchConfig `yaml:"mail_dispatch"`
-	PollInterval    time.Duration      `yaml:"poll_interval"`
-	Timezone        string             `yaml:"timezone"`
-	RunnerID        string             `yaml:"runner_id"`
-	LockProvider    string             `yaml:"lock_provider"`
-	MaxParallelJobs int                `yaml:"max_parallel_jobs"`
-	ShutdownTimeout time.Duration      `yaml:"shutdown_timeout"`
+	Enabled         bool                `yaml:"enabled"`
+	MailDispatch    MailDispatchConfig  `yaml:"mail_dispatch"`
+	ScheduledMail   ScheduledMailConfig `yaml:"scheduled_mail"`
+	PollInterval    time.Duration       `yaml:"poll_interval"`
+	Timezone        string              `yaml:"timezone"`
+	RunnerID        string              `yaml:"runner_id"`
+	LockProvider    string              `yaml:"lock_provider"`
+	MaxParallelJobs int                 `yaml:"max_parallel_jobs"`
+	ShutdownTimeout time.Duration       `yaml:"shutdown_timeout"`
+}
+
+type ScheduledMailConfig struct {
+	Enabled       bool          `yaml:"enabled"`
+	Interval      time.Duration `yaml:"interval"`
+	LeaseDuration time.Duration `yaml:"lease_duration"`
+	MaxAttempts   int           `yaml:"max_attempts"`
+	RetryDelay    time.Duration `yaml:"retry_delay"`
 }
 
 type MailDispatchConfig struct {
@@ -269,6 +278,26 @@ func (c *Config) Validate() error {
 	}
 
 	if c.Scheduler.Enabled {
+		if c.Scheduler.ScheduledMail.Enabled {
+			if !c.SMTP.Enabled {
+				return errors.New("scheduler.scheduled_mail에는 smtp.enabled가 필요합니다")
+			}
+			if c.DB.Vendor != DBVendorPostgres && c.DB.Vendor != DBVendorMySQL {
+				return errors.New("scheduler.scheduled_mail에는 PostgreSQL 또는 MySQL이 필요합니다")
+			}
+			if c.Scheduler.ScheduledMail.Interval <= 0 {
+				c.Scheduler.ScheduledMail.Interval = 10 * time.Second
+			}
+			if c.Scheduler.ScheduledMail.MaxAttempts <= 0 {
+				c.Scheduler.ScheduledMail.MaxAttempts = 3
+			}
+			if c.Scheduler.ScheduledMail.RetryDelay <= 0 {
+				c.Scheduler.ScheduledMail.RetryDelay = time.Minute
+			}
+			if c.Scheduler.ScheduledMail.LeaseDuration <= c.SMTP.Timeout {
+				return errors.New("scheduler.scheduled_mail.lease_duration은 smtp.timeout보다 길어야 합니다")
+			}
+		}
 		if c.Scheduler.MailDispatch.Enabled {
 			if !c.SMTP.Enabled {
 				return errors.New("scheduler.mail_dispatch에는 smtp.enabled가 필요합니다")
@@ -385,6 +414,11 @@ func applyEnvOverride(cfg *Config) {
 	overrideString(&cfg.Scheduler.LockProvider, "SCHEDULER_LOCK_PROVIDER")
 	overrideInt(&cfg.Scheduler.MaxParallelJobs, "SCHEDULER_MAX_PARALLEL_JOBS")
 	overrideDuration(&cfg.Scheduler.ShutdownTimeout, "SCHEDULER_SHUTDOWN_TIMEOUT")
+	overrideBool(&cfg.Scheduler.ScheduledMail.Enabled, "SCHEDULED_MAIL_ENABLED")
+	overrideDuration(&cfg.Scheduler.ScheduledMail.Interval, "SCHEDULED_MAIL_INTERVAL")
+	overrideDuration(&cfg.Scheduler.ScheduledMail.LeaseDuration, "SCHEDULED_MAIL_LEASE_DURATION")
+	overrideInt(&cfg.Scheduler.ScheduledMail.MaxAttempts, "SCHEDULED_MAIL_MAX_ATTEMPTS")
+	overrideDuration(&cfg.Scheduler.ScheduledMail.RetryDelay, "SCHEDULED_MAIL_RETRY_DELAY")
 
 	overrideString(&cfg.Security.SecretProvider, "SECURITY_SECRET_PROVIDER")
 	overrideString(&cfg.Security.MasterKeyEnv, "SECURITY_MASTER_KEY_ENV")

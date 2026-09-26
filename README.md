@@ -43,7 +43,9 @@ able-rest-api/
 - `internal/delivery/http/router`는 인증이 적용된 `/api/v1` 라우터와 모듈 경로 등록 함수를 조합합니다. 공통 미들웨어와 `internal/platform/http`는 업무 DTO·서비스·핸들러에 의존하지 않습니다.
 - `cmd/server`가 DB·SMTP·서비스를 생성하고 각 모듈의 `Routes`를 공통 라우터에 전달합니다. 별도 프로세스인 `cmd/scheduler`는 메일 서비스와 예약 작업을 조립합니다. PostgreSQL/MySQL 저장소와 SMTP 구현은 `internal/infra`에 있습니다.
 
-`scheduler.mail_dispatch.enabled`를 켜면 `cmd/scheduler`가 설정한 `interval`마다 `to`/`cc`/`bcc`, `subject`, `body`, `is_html`, `attachments`로 메일을 발송합니다. 첨부파일은 `filename`, `content_type`, `content_base64`를 사용합니다. 기본값은 비활성화이며, 이 설정은 반복 발송용입니다. PostgreSQL 락은 여러 스케줄러 프로세스의 동일 작업 동시 실행을 막습니다. `lock_provider: none`에서는 프로세스 사이 중복 실행을 막지 않습니다. 별도 예약 메일 저장소가 없으므로 개별 메일의 일회성 예약과 장애 후 재시도는 지원하지 않습니다.
+`scheduler.mail_dispatch.enabled`를 켜면 `cmd/scheduler`가 설정한 `interval`마다 `to`/`cc`/`bcc`, `subject`, `body`, `is_html`, `attachments`로 메일을 발송합니다. 첨부파일은 `filename`, `content_type`, `content_base64`를 사용합니다. 이 설정은 기존 반복 발송용입니다. PostgreSQL 락은 여러 스케줄러 프로세스의 동일 작업 동시 실행을 막습니다. `lock_provider: none`에서는 반복 작업의 프로세스 사이 중복 실행을 막지 않습니다.
+
+개별 예약 메일은 PostgreSQL 또는 MySQL의 `scheduled_mails` migration을 적용한 뒤 `scheduler.scheduled_mail.enabled`를 켜서 처리합니다. `cmd/schedulemail -config configs/app.yaml -input request.json`으로 한 건을 예약합니다. 입력 JSON은 `{"scheduled_at":"2026-10-01T09:00:00+09:00","mail":{"to":["user@example.com"],"subject":"안내","body":"내용"}}` 형식입니다. 명령은 생성된 예약 ID를 출력합니다. `max_attempts`에는 최초 발송도 포함되며, 일시적 실패는 `retry_delay`부터 최대 1시간까지 지수 지연으로 재시도합니다. `PROCESSING` 상태가 `lease_duration`을 넘기면 재claim하고, 시도 한도를 넘으면 `FAILED`로 종료합니다. SMTP가 메일을 수락한 직후 프로세스가 종료되면 DB에 `SENT`를 기록하지 못하므로 복구 발송이 중복될 수 있습니다. 수신측 중복 방지가 필요한 경우 후속 단계에서 안정적인 메시지 ID와 수신측 멱등 처리를 연결해야 합니다.
 
 새 업무 모듈은 `internal/modules/<이름>/`에 모델과 외부 경계 계약, 서비스의 업무 규칙, DTO, HTTP 핸들러, `routes.go`를 추가합니다. 외부 구현이 필요하면 해당 모듈의 인터페이스를 따르는 `internal/infra` 구현을 `cmd/server`에서 주입하고 서비스와 `Routes`를 조립합니다. 공통 라우터는 경로 등록 함수만 받으므로 일반적인 모듈 추가에는 수정할 필요가 없습니다. `docs/openapi.yaml`에 요청·응답과 operationId를 정의하고 `internal/delivery/http/router/runtime_contract_test.go`에 선언된 상태별 정상·오류 사례를 추가한 뒤 `go test ./...`, `go vet ./...`, `go build ./...`, `make openapi-check`를 실행합니다. 기존 URI와 응답 형식은 유지합니다.
 

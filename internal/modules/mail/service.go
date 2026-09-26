@@ -43,38 +43,49 @@ func (s *MailService) SendMail(ctx context.Context, message MailMessage) (int, e
 	if !s.enabled || s.sender == nil {
 		return 0, ErrDisabled
 	}
-
-	to, err := normalizeAddresses(message.To, true)
+	message, err := NormalizeMessage(message)
 	if err != nil {
 		return 0, err
+	}
+	if err := s.sender.Send(ctx, message); err != nil {
+		return 0, fmt.Errorf("메일 발송 실패: %w", err)
+	}
+	return len(message.To) + len(message.CC) + len(message.BCC), nil
+}
+
+// NormalizeMessage는 메일 입력을 검증하고 발송 형식으로 정규화한다.
+func NormalizeMessage(message MailMessage) (MailMessage, error) {
+	to, err := normalizeAddresses(message.To, true)
+	if err != nil {
+		return MailMessage{}, err
 	}
 	cc, err := normalizeAddresses(message.CC, false)
 	if err != nil {
-		return 0, err
+		return MailMessage{}, err
 	}
 	bcc, err := normalizeAddresses(message.BCC, false)
 	if err != nil {
-		return 0, err
+		return MailMessage{}, err
 	}
 	if len(message.To)+len(message.CC)+len(message.BCC) > maxRecipients {
-		return 0, fmt.Errorf("%w: 수신자는 최대 %d명까지 허용됩니다", ErrInvalidInput, maxRecipients)
+		return MailMessage{}, fmt.Errorf("%w: 수신자는 최대 %d명까지 허용됩니다", ErrInvalidInput, maxRecipients)
 	}
 
 	subject := strings.TrimSpace(message.Subject)
 	body := strings.TrimSpace(message.Body)
 	if subject == "" {
-		return 0, fmt.Errorf("%w: subject는 필수입니다", ErrInvalidInput)
+		return MailMessage{}, fmt.Errorf("%w: subject는 필수입니다", ErrInvalidInput)
 	}
 	if hasHeaderControl(subject) {
-		return 0, fmt.Errorf("%w: subject에 제어 문자를 사용할 수 없습니다", ErrInvalidInput)
+		return MailMessage{}, fmt.Errorf("%w: subject에 제어 문자를 사용할 수 없습니다", ErrInvalidInput)
 	}
 	if body == "" {
-		return 0, fmt.Errorf("%w: body는 필수입니다", ErrInvalidInput)
+		return MailMessage{}, fmt.Errorf("%w: body는 필수입니다", ErrInvalidInput)
 	}
 
 	attachments, err := normalizeAttachments(message.Attachments)
 	if err != nil {
-		return 0, err
+		return MailMessage{}, err
 	}
 
 	message.To = to
@@ -84,11 +95,7 @@ func (s *MailService) SendMail(ctx context.Context, message MailMessage) (int, e
 	message.Body = body
 	message.Attachments = attachments
 
-	if err := s.sender.Send(ctx, message); err != nil {
-		return 0, fmt.Errorf("메일 발송 실패: %w", err)
-	}
-
-	return len(message.To) + len(message.CC) + len(message.BCC), nil
+	return message, nil
 }
 
 func normalizeAddresses(values []string, required bool) ([]string, error) {
