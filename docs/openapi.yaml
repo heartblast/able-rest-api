@@ -193,21 +193,21 @@ components:
       required: [success, data]
       properties:
         success: {type: boolean, enum: [true], example: true}
-        request_id: {type: string, description: 요청별 식별자. 값이 비어 있으면 생략된다., example: example-request-id}
+        request_id: {type: string, minLength: 1, description: 요청별 식별자. 값이 비어 있으면 생략된다., example: example-request-id}
         data: {type: object}
     ErrorResponse:
       type: object
       required: [success, error]
       properties:
         success: {type: boolean, enum: [false], example: false}
-        request_id: {type: string, description: 미지원 Content-Type 응답에는 없다., example: example-request-id}
+        request_id: {type: string, minLength: 1, description: 미지원 Content-Type 응답에는 없다., example: example-request-id}
         error: {$ref: '#/components/schemas/ErrorDetail'}
     ErrorDetail:
       type: object
       required: [code, message]
       properties:
-        code: {type: string, example: VALIDATION_ERROR}
-        message: {type: string, example: 잘못된 요청입니다}
+        code: {type: string, minLength: 1, example: VALIDATION_ERROR}
+        message: {type: string, minLength: 1, example: 잘못된 요청입니다}
     HealthData:
       type: object
       required: [status]
@@ -229,7 +229,7 @@ components:
       type: object
       required: [id, name, email, created_at, updated_at]
       properties:
-        id: {type: integer, format: int64, example: 1}
+        id: {type: integer, format: int64, minimum: 1, example: 1}
         name: {type: string, example: Alice}
         email: {type: string, example: alice@example.com}
         created_at: {type: string, format: date-time, example: '2026-04-06T10:00:00Z'}
@@ -247,7 +247,7 @@ components:
         items:
           type: array
           items: {$ref: '#/components/schemas/User'}
-        count: {type: integer, description: 반환된 items의 개수., example: 1}
+        count: {type: integer, minimum: 0, description: 반환된 items의 개수., example: 1}
     UserListEnvelopeResponse:
       allOf:
         - $ref: '#/components/schemas/SuccessEnvelope'
@@ -290,7 +290,7 @@ components:
       type: object
       required: [accepted_recipients]
       properties:
-        accepted_recipients: {type: integer, example: 1}
+        accepted_recipients: {type: integer, minimum: 1, example: 1}
     SendMailResponse:
       allOf:
         - $ref: '#/components/schemas/SuccessEnvelope'
