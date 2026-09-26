@@ -1,4 +1,4 @@
-package handler
+package user
 
 import (
 	"errors"
@@ -7,8 +7,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"able-rest-api/internal/app/service"
-	"able-rest-api/internal/delivery/http/dto"
 	"able-rest-api/internal/delivery/http/middleware"
 	"able-rest-api/internal/domain/model"
 	"able-rest-api/internal/platform/http/response"
@@ -16,11 +14,11 @@ import (
 
 // UserHandler는 사용자 HTTP 요청을 처리한다.
 type UserHandler struct {
-	service *service.UserService
+	service *UserService
 }
 
 // NewUserHandler는 UserHandler를 생성한다.
-func NewUserHandler(svc *service.UserService) *UserHandler {
+func NewUserHandler(svc *UserService) *UserHandler {
 	return &UserHandler{service: svc}
 }
 
@@ -34,9 +32,9 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	user, err := h.service.GetUser(r.Context(), id)
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrInvalidInput):
+		case errors.Is(err, ErrInvalidInput):
 			response.WriteError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
-		case errors.Is(err, service.ErrNotFound):
+		case errors.Is(err, ErrNotFound):
 			response.WriteError(w, r, http.StatusNotFound, "NOT_FOUND", "사용자를 찾을 수 없습니다")
 		default:
 			response.WriteError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "사용자 조회 중 오류가 발생했습니다")
@@ -57,19 +55,19 @@ func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	items := make([]dto.UserResponse, 0, len(users))
+	items := make([]UserResponse, 0, len(users))
 	for _, user := range users {
 		items = append(items, toUserResponse(user))
 	}
 
-	response.WriteSuccess(w, r, http.StatusOK, dto.UserListResponse{
+	response.WriteSuccess(w, r, http.StatusOK, UserListResponse{
 		Items: items,
 		Count: len(items),
 	})
 }
 
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
-	var req dto.CreateUserRequest
+	var req CreateUserRequest
 	if err := middleware.DecodeJSON(r, &req); err != nil {
 		if middleware.JSONErrorStatus(err) == http.StatusRequestEntityTooLarge {
 			response.WriteError(w, r, http.StatusRequestEntityTooLarge, "REQUEST_TOO_LARGE", "요청 본문이 너무 큽니다")
@@ -81,7 +79,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.service.CreateUser(r.Context(), req.Name, req.Email)
 	if err != nil {
-		if errors.Is(err, service.ErrInvalidInput) {
+		if errors.Is(err, ErrInvalidInput) {
 			response.WriteError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 			return
 		}
@@ -93,8 +91,8 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	response.WriteSuccess(w, r, http.StatusCreated, toUserResponse(*user))
 }
 
-func toUserResponse(user model.User) dto.UserResponse {
-	return dto.UserResponse{
+func toUserResponse(user model.User) UserResponse {
+	return UserResponse{
 		ID:        user.ID,
 		Name:      user.Name,
 		Email:     user.Email,

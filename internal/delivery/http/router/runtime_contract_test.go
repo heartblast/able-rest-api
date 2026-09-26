@@ -23,11 +23,11 @@ import (
 	"github.com/getkin/kin-openapi/routers/legacy"
 
 	"able-rest-api/docs"
-	"able-rest-api/internal/app/service"
 	"able-rest-api/internal/domain/model"
 	"able-rest-api/internal/domain/repository"
 	"able-rest-api/internal/infra/config"
 	"able-rest-api/internal/infra/persistence"
+	mailmodule "able-rest-api/internal/modules/mail"
 )
 
 type contractRepo struct {
@@ -274,7 +274,7 @@ func TestRuntimeOpenAPIContract(t *testing.T) {
 				t.Cleanup(func() { _ = db.Close() })
 			}
 			sender := &contractSender{fail: tc.mailFail}
-			handler := newTestRouter(&config.Config{App: config.AppConfig{Env: "test"}, Security: config.SecurityConfig{APIKeyEnv: "CONTRACT_API_KEY", MaxRequestBodyBytes: 1 << 20}}, quietLogger{}, db, &persistence.Repositories{UserRepository: repo}, service.NewMailService(!tc.mailDisabled, sender))
+			handler := newTestRouter(&config.Config{App: config.AppConfig{Env: "test"}, Security: config.SecurityConfig{APIKeyEnv: "CONTRACT_API_KEY", MaxRequestBodyBytes: 1 << 20}}, quietLogger{}, db, &persistence.Repositories{UserRepository: repo}, mailmodule.NewMailService(!tc.mailDisabled, sender))
 			request := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
 			if tc.status != 401 {
 				request.Header.Set("X-API-Key", contractKey)

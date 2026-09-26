@@ -1,4 +1,6 @@
-package dto
+package user
+
+import "able-rest-api/internal/platform/http/response"
 
 // CreateUserRequest는 사용자 생성 요청 DTO다.
 type CreateUserRequest struct {
@@ -21,14 +23,11 @@ type UserListResponse struct {
 	Count int            `json:"count" example:"1"`
 }
 
-// HealthResponse는 상태 점검 성공 응답 DTO다.
-type HealthResponse = SuccessResponse[HealthData]
-
 // UserGetResponse는 단건 조회 성공 응답 DTO다.
-type UserGetResponse = SuccessResponse[UserResponse]
+type UserGetResponse = response.SuccessResponse[UserResponse]
 
 // UserCreateResponse는 생성 성공 응답 DTO다.
-type UserCreateResponse = SuccessResponse[UserResponse]
+type UserCreateResponse = response.SuccessResponse[UserResponse]
 
 // UserListEnvelopeResponse는 목록 조회 성공 응답 DTO다.
-type UserListEnvelopeResponse = SuccessResponse[UserListResponse]
+type UserListEnvelopeResponse = response.SuccessResponse[UserListResponse]

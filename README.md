@@ -7,84 +7,30 @@
 ```text
 able-rest-api/
   cmd/
-    server/
-      main.go
+    server/             # HTTP 의존성 조립
+    scheduler/          # 예약 작업 의존성 조립
     migrate/
-      main.go
     secretenc/
-      main.go
   docs/
-    openapi.yaml
+    openapi.yaml        # OpenAPI 계약 원본
     openapi.go
   internal/
-    app/
-      service/
-        user_service.go
-    domain/
-      model/
-        user.go
-      repository/
-        user_repository.go
-    delivery/
-      http/
-        dto/
-          common.go
-          user.go
-        handler/
-          health_handler.go
-          response.go
-          user_handler.go
-        middleware/
-          context.go
-          json.go
-          logging.go
-          request_id.go
-        router/
-          router.go
-    infra/
-      config/
-        config.go
-      db/
-        factory/
-          factory.go
-        dialect/
-          dialect.go
-          postgres.go
-          mysql.go
-          oracle.go
-          hsqldb.go
-        postgres/
-          user_repository.go
-        mysql/
-          user_repository.go
-        oracle/
-          driver_stub.go
-          user_repository.go
-        hsqldb/
-          user_repository.go
-      security/
-        provider.go
-      persistence/
-        repositories.go
+    modules/
+      user/             # 서비스, DTO, 핸들러, 경로 등록
+      mail/             # 서비스, DTO, 핸들러, 경로 등록, 예약 메일 작업
+    domain/             # DB·메일·스케줄러가 공유하는 모델과 인터페이스
+    app/service/        # 공통 예약 작업 서비스
+    delivery/http/
+      middleware/       # 공통 HTTP 미들웨어
+      router/           # 공통 라우터와 계약 테스트
     platform/
+      http/             # 상태 확인과 공통 응답 형식
       logger/
-        logger.go
+    infra/              # 설정, DB, SMTP, 보안, 스케줄러 구현
   migrations/
-    common/
-      000001_baseline.sql
-    postgres/
-      000001_create_users.sql
-    mysql/
-      000001_create_users.sql
-    oracle/
-      000001_create_users.sql
-    hsqldb/
-      000001_create_users.sql
   configs/
     app.example.yaml
   Makefile
-  build.ps1
-  build-offline.ps1
   build.sh
   README.md
   go.mod
@@ -92,11 +38,12 @@ able-rest-api/
 
 ## Framework와 업무 모듈 경계
 
-- 공통 플랫폼: `internal/delivery/http/router`는 인증이 적용된 `/api/v1` 라우터와 공통 미들웨어를 구성합니다. `internal/delivery/http/middleware`, `internal/platform/http`(상태 확인과 응답 형식), `internal/platform/logger`, `internal/infra/config`, `docs/openapi.yaml`도 여러 업무 모듈에서 공유합니다. 설정 로드와 시크릿 처리 구현은 현재 `infra`에 유지합니다.
-- 업무 모듈: `internal/modules/user`와 `internal/modules/mail`이 각자의 HTTP 경로를 등록합니다. 기존 `internal/app/service`, `internal/domain`, `internal/delivery/http/handler`, `internal/delivery/http/dto`에는 업무별 서비스·모델·핸들러·DTO가 남아 있습니다. PostgreSQL/MySQL 저장소와 SMTP 어댑터는 `internal/infra`에 있습니다.
-- 조립 위치: `cmd/server`가 DB·SMTP·서비스를 생성하고 각 모듈의 `Routes`를 공통 라우터에 전달합니다. 공통 라우터는 업무 서비스나 저장소를 생성하지 않습니다. `cmd/scheduler`는 별도로 작업 서비스를 조립합니다.
+- `internal/modules/user`는 사용자 서비스·DTO·핸들러·경로를 소유합니다. `internal/modules/mail`은 메일 서비스·DTO·핸들러·경로와 예약 메일 작업 정의를 소유합니다.
+- `internal/domain`의 모델·인터페이스는 DB 저장소, SMTP 발송기, 스케줄러와 공유합니다. `internal/app/service`에는 공통 예약 작업 서비스만 둡니다.
+- `internal/delivery/http/router`는 인증이 적용된 `/api/v1` 라우터와 모듈 경로 등록 함수를 조합합니다. 공통 미들웨어와 `internal/platform/http`는 업무 DTO·서비스·핸들러에 의존하지 않습니다.
+- `cmd/server`가 DB·SMTP·서비스를 생성하고 각 모듈의 `Routes`를 공통 라우터에 전달합니다. `cmd/scheduler`는 작업 서비스를 별도로 조립합니다. PostgreSQL/MySQL 저장소와 SMTP 구현은 `internal/infra`에 있습니다.
 
-새 업무 모듈을 추가할 때는 도메인 모델·포트와 서비스에 업무 규칙을 두고, HTTP 핸들러와 DTO를 만든 뒤 `internal/modules/<이름>/routes.go`에서 경로를 등록하세요. `cmd/server`에서 의존성을 조립해 해당 `Routes`를 전달하고, `docs/openapi.yaml`과 `internal/delivery/http/router/runtime_contract_test.go`의 정상·오류 사례를 함께 갱신하세요. 기존 URI와 응답 형식은 그대로 유지해야 합니다.
+새 업무 모듈은 `internal/modules/<이름>/`에 서비스의 업무 규칙, DTO, HTTP 핸들러, `routes.go`를 추가합니다. 외부 구현이 필요하면 `internal/domain`의 인터페이스를 통해 `internal/infra` 구현을 주입하고, `cmd/server`에서 서비스와 `Routes`를 조립합니다. 공통 라우터는 경로 등록 함수만 받으므로 일반적인 모듈 추가에는 수정할 필요가 없습니다. `docs/openapi.yaml`에 요청·응답과 operationId를 정의하고 `internal/delivery/http/router/runtime_contract_test.go`에 선언된 상태별 정상·오류 사례를 추가한 뒤 `go test ./...`, `go vet ./...`, `go build ./...`, `make openapi-check`를 실행합니다. 기존 URI와 응답 형식은 유지합니다.
 
 ## 실행 준비
 
@@ -328,10 +275,10 @@ go run ./cmd/secretenc --value "my-db-password" --key-env APP_MASTER_KEY
 ## 확장 포인트
 
 - 인증/권한: `internal/delivery/http/middleware`
-- 감사 로그: `internal/app/service` 또는 별도 이벤트 발행 계층
+- 감사 로그: 해당 업무 모듈 또는 별도 이벤트 발행 계층
 - 관측성: `internal/platform/logger` 확장
 - 외부 시크릿 저장소: `internal/infra/security.SecretProvider` 구현 추가
-- 신규 리소스: 동일한 계층 패턴으로 `domain -> service -> handler -> infra/db/<vendor>` 추가
+- 신규 리소스: `internal/modules/<이름>`에 서비스·DTO·핸들러·경로를 만들고 필요한 도메인 인터페이스와 `infra` 구현을 연결
 
 ## Oracle / HSQLDB 메모
 

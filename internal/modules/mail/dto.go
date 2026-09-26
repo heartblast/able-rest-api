@@ -1,4 +1,6 @@
-package dto
+package mail
+
+import "able-rest-api/internal/platform/http/response"
 
 // SendMailRequest는 메일 발송 요청 DTO다.
 type SendMailRequest struct {
@@ -24,4 +26,4 @@ type SendMailResponseData struct {
 }
 
 // SendMailResponse는 메일 발송 성공 응답 DTO다.
-type SendMailResponse = SuccessResponse[SendMailResponseData]
+type SendMailResponse = response.SuccessResponse[SendMailResponseData]

@@ -15,9 +15,11 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"able-rest-api/docs"
-	"able-rest-api/internal/delivery/http/dto"
 	"able-rest-api/internal/infra/config"
 	"able-rest-api/internal/infra/persistence"
+	mailmodule "able-rest-api/internal/modules/mail"
+	usermodule "able-rest-api/internal/modules/user"
+	"able-rest-api/internal/platform/http/response"
 )
 
 type quietLogger struct{}
@@ -71,15 +73,15 @@ func TestOpenAPIContractAndRoutes(t *testing.T) {
 		t.Error(issue)
 	}
 
-	checkProperties(t, doc, "CreateUserRequest", dto.CreateUserRequest{})
-	checkProperties(t, doc, "User", dto.UserResponse{})
-	checkProperties(t, doc, "UserListData", dto.UserListResponse{})
-	checkProperties(t, doc, "SendMailRequest", dto.SendMailRequest{})
-	checkProperties(t, doc, "SendMailAttachmentRequest", dto.SendMailAttachmentRequest{})
-	checkProperties(t, doc, "SendMailResponseData", dto.SendMailResponseData{})
-	checkProperties(t, doc, "HealthData", dto.HealthData{})
-	checkProperties(t, doc, "ErrorDetail", dto.ErrorDetail{})
-	checkProperties(t, doc, "ErrorResponse", dto.ErrorResponse{})
+	checkProperties(t, doc, "CreateUserRequest", usermodule.CreateUserRequest{})
+	checkProperties(t, doc, "User", usermodule.UserResponse{})
+	checkProperties(t, doc, "UserListData", usermodule.UserListResponse{})
+	checkProperties(t, doc, "SendMailRequest", mailmodule.SendMailRequest{})
+	checkProperties(t, doc, "SendMailAttachmentRequest", mailmodule.SendMailAttachmentRequest{})
+	checkProperties(t, doc, "SendMailResponseData", mailmodule.SendMailResponseData{})
+	checkProperties(t, doc, "HealthData", response.HealthData{})
+	checkProperties(t, doc, "ErrorDetail", response.ErrorDetail{})
+	checkProperties(t, doc, "ErrorResponse", response.ErrorResponse{})
 }
 
 func contractIssues(doc *openapi3.T, actual map[string]bool) []string {

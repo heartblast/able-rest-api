@@ -14,6 +14,7 @@ import (
 	"able-rest-api/internal/infra/db/factory"
 	schedulerinfra "able-rest-api/internal/infra/scheduler"
 	"able-rest-api/internal/infra/security"
+	mailmodule "able-rest-api/internal/modules/mail"
 	"able-rest-api/internal/platform/logger"
 )
 
@@ -56,7 +57,7 @@ func main() {
 
 	jobService := service.NewJobService(
 		schedulerinfra.NewExecutionRepository(cfg.DB.Vendor, db),
-		service.NewMailDispatchJob(),
+		mailmodule.NewMailDispatchJob(),
 	)
 
 	runner := schedulerinfra.NewRunner(cfg.Scheduler, log, jobService, lock)

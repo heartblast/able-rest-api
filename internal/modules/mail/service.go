@@ -1,4 +1,4 @@
-package service
+package mail
 
 import (
 	"context"
@@ -16,6 +16,8 @@ import (
 
 var (
 	ErrDisabled = errors.New("disabled")
+	// ErrInvalidInput은 메일 요청의 입력값 검증 실패를 의미한다.
+	ErrInvalidInput = errors.New("invalid input")
 )
 
 const (

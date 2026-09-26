@@ -10,7 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"able-rest-api/internal/app/service"
 	"able-rest-api/internal/delivery/http/router"
 	"able-rest-api/internal/infra/config"
 	"able-rest-api/internal/infra/db/factory"
@@ -62,11 +61,11 @@ func main() {
 	if cfg.SMTP.Enabled {
 		mailSender = mailinfra.NewSMTPSender(cfg.SMTP)
 	}
-	mailService := service.NewMailService(cfg.SMTP.Enabled, mailSender)
+	mailService := mailmodule.NewMailService(cfg.SMTP.Enabled, mailSender)
 
 	srv := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", cfg.App.Host, cfg.App.Port),
-		Handler:           router.New(cfg, log, db, usermodule.Routes(service.NewUserService(repos.UserRepository)), mailmodule.Routes(mailService)),
+		Handler:           router.New(cfg, log, db, usermodule.Routes(usermodule.NewUserService(repos.UserRepository)), mailmodule.Routes(mailService)),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      45 * time.Second,
