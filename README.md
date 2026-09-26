@@ -244,11 +244,15 @@ go build ./...
 
 `docs/openapi.yaml`이 OpenAPI 3.0 계약의 단일 원본입니다. 서버는 이 파일을 포함하고 JSON으로 변환하여 `GET /openapi.json`에서 제공합니다. 기존 `docs/docs.go`, `docs/swagger.json`, `docs/swagger.yaml`은 Swagger 2.0 생성 산출물이었으며 제거했습니다. Handler의 Swagger 주석을 다시 생성하지 않습니다.
 
-계약 유효성, `$ref`, 라우트와 `operationId` 대조, DTO 필드 일치 여부 확인:
+API의 router, handler, DTO 또는 `docs/openapi.yaml`을 변경한 뒤 다음 명령을 실행합니다. CI도 push와 pull request마다 같은 세 명령을 필수 실행합니다.
 
 ```bash
+go test ./...
+go vet ./...
 make openapi-check
 ```
+
+`openapi-check`는 문법과 `$ref`, 실제 router와 OpenAPI 양방향 route/HTTP method 일치, `operationId` 누락·중복, DTO 속성, 실제 HTTP request/response의 status와 schema를 검증합니다. `/openapi.json`과 `/swagger/*`는 문서 제공 경로라 비교에서 제외합니다. 테스트는 가짜 DB 연결과 메일 발송기를 사용하므로 실제 DB·SMTP가 필요하지 않습니다. 새 API route를 추가할 때는 OpenAPI operation과 런타임 계약 테스트 사례도 함께 추가합니다.
 
 Swagger UI는 `swagger.enabled: true`일 때 아래 경로에서 `/openapi.json`을 읽습니다.
 

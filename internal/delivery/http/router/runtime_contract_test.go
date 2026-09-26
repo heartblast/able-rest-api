@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -136,6 +137,7 @@ func TestRuntimeOpenAPIContract(t *testing.T) {
 		{name: "send mail disabled", method: "POST", path: "/api/v1/mail/send", body: mailJSON, contentType: "application/json", status: 503, code: "MAIL_DISABLED", mailDisabled: true},
 		{name: "send mail sender error", method: "POST", path: "/api/v1/mail/send", body: mailJSON, contentType: "application/json", status: 500, code: "INTERNAL_ERROR", mailFail: true},
 	}
+	covered := map[string]map[int]bool{}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			now := time.Date(2026, 4, 6, 10, 0, 0, 0, time.UTC)
@@ -155,13 +157,19 @@ func TestRuntimeOpenAPIContract(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s %s: OpenAPI route: %v", tc.method, tc.path, err)
 			}
+			label := fmt.Sprintf("%s %s (operationId %s)", tc.method, route.Path, route.Operation.OperationID)
+			key := tc.method + " " + route.Path
+			if covered[key] == nil {
+				covered[key] = map[int]bool{}
+			}
+			covered[key][tc.status] = true
 			input := &openapi3filter.RequestValidationInput{Request: request, Route: route, PathParams: pathParams}
 			requestErr := openapi3filter.ValidateRequest(context.Background(), input)
 			if tc.invalidRequest && requestErr == nil {
-				t.Fatalf("%s %s: expected request parameter/body validation to fail", tc.method, tc.path)
+				t.Fatalf("%s: expected request parameter/body validation to fail", label)
 			}
 			if !tc.invalidRequest && requestErr != nil {
-				t.Fatalf("%s %s: request contract: %v", tc.method, tc.path, requestErr)
+				t.Fatalf("%s: request contract: %v", label, requestErr)
 			}
 			// Validation reads the body; restore it even when validation rejects the request.
 			request.Body = io.NopCloser(bytes.NewReader([]byte(tc.body)))
@@ -173,7 +181,7 @@ func TestRuntimeOpenAPIContract(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			label := fmt.Sprintf("%s %s -> %d", tc.method, route.Path, response.StatusCode)
+			label = fmt.Sprintf("%s -> %d", label, response.StatusCode)
 			if response.StatusCode != tc.status {
 				t.Fatalf("%s: status want %d; body %s", label, tc.status, payload)
 			}
@@ -222,6 +230,17 @@ func TestRuntimeOpenAPIContract(t *testing.T) {
 				}
 			}
 		})
+	}
+	for path, item := range doc.Paths.Map() {
+		for method, operation := range item.Operations() {
+			key := method + " " + path
+			for status := range operation.Responses.Map() {
+				code, err := strconv.Atoi(status)
+				if err != nil || !covered[key][code] {
+					t.Errorf("%s (operationId %s): no runtime request/response contract case for status %s", key, operation.OperationID, status)
+				}
+			}
+		}
 	}
 }
 

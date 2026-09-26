@@ -37,7 +37,7 @@ func TestOpenAPIContractAndRoutes(t *testing.T) {
 		t.Fatalf("expected OpenAPI 3.x, got %q", doc.OpenAPI)
 	}
 
-	r := New(&config.Config{}, quietLogger{}, nil, &persistence.Repositories{}, nil)
+	r := New(&config.Config{Swagger: config.SwaggerConfig{Enabled: true}}, quietLogger{}, nil, &persistence.Repositories{}, nil)
 	recorder := httptest.NewRecorder()
 	r.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/openapi.json", nil))
 	if recorder.Code != http.StatusOK {
@@ -59,56 +59,16 @@ func TestOpenAPIContractAndRoutes(t *testing.T) {
 
 	actual := map[string]bool{}
 	if err := chi.Walk(r.(chi.Routes), func(method, route string, _ http.Handler, _ ...func(http.Handler) http.Handler) error {
-		if route == "/health" || route == "/ready" || strings.HasPrefix(route, "/api/v1/") {
+		// These two routes serve documentation; every other HTTP route is public API.
+		if route != "/openapi.json" && !strings.HasPrefix(route, "/swagger/") {
 			actual[method+" "+strings.TrimSuffix(route, "/")] = true
 		}
 		return nil
 	}); err != nil {
 		t.Fatal(err)
 	}
-	expected := map[string]string{
-		"GET /health":            "getHealth",
-		"GET /ready":             "getReadiness",
-		"GET /api/v1/users":      "listUsers",
-		"POST /api/v1/users":     "createUser",
-		"GET /api/v1/users/{id}": "getUser",
-		"POST /api/v1/mail/send": "sendMail",
-	}
-	if len(actual) != len(expected) {
-		t.Fatalf("router operations = %v; want %v", keys(actual), keys(expected))
-	}
-	ids := map[string]bool{}
-	contractRoutes := map[string]bool{}
-	for path, item := range doc.Paths.Map() {
-		for method, operation := range item.Operations() {
-			route := method + " " + path
-			contractRoutes[route] = true
-			if !actual[route] {
-				t.Errorf("contract operation has no route: %s", route)
-			}
-			if ids[operation.OperationID] {
-				t.Errorf("duplicate operationId %q", operation.OperationID)
-			}
-			ids[operation.OperationID] = true
-		}
-	}
-	if len(contractRoutes) != len(actual) {
-		t.Errorf("contract operations = %v; router operations = %v", keys(contractRoutes), keys(actual))
-	}
-	for route, id := range expected {
-		if !actual[route] {
-			t.Errorf("missing route %s", route)
-		}
-		parts := strings.SplitN(route, " ", 2)
-		item := doc.Paths.Find(parts[1])
-		if item == nil {
-			t.Errorf("missing contract path %s", parts[1])
-			continue
-		}
-		operation := item.GetOperation(strings.ToUpper(parts[0]))
-		if operation == nil || operation.OperationID != id {
-			t.Errorf("%s has operationId %q, want %q", route, operationID(operation), id)
-		}
+	for _, issue := range contractIssues(doc, actual) {
+		t.Error(issue)
 	}
 
 	checkProperties(t, doc, "CreateUserRequest", dto.CreateUserRequest{})
@@ -122,11 +82,60 @@ func TestOpenAPIContractAndRoutes(t *testing.T) {
 	checkProperties(t, doc, "ErrorResponse", dto.ErrorResponse{})
 }
 
-func operationID(op *openapi3.Operation) string {
-	if op == nil {
-		return ""
+func contractIssues(doc *openapi3.T, actual map[string]bool) []string {
+	var issues []string
+	ids := map[string]string{}
+	contractRoutes := map[string]bool{}
+	for path, item := range doc.Paths.Map() {
+		for method, operation := range item.Operations() {
+			route := method + " " + path
+			contractRoutes[route] = true
+			if !actual[route] {
+				issues = append(issues, route+": OpenAPI operationId "+operation.OperationID+" has no router route")
+			}
+			if strings.TrimSpace(operation.OperationID) == "" {
+				issues = append(issues, route+": missing operationId")
+			} else if previous, ok := ids[operation.OperationID]; ok {
+				issues = append(issues, route+": duplicate operationId "+operation.OperationID+" (also "+previous+")")
+			}
+			ids[operation.OperationID] = route
+			if strings.TrimSpace(operation.Summary) == "" {
+				issues = append(issues, route+" (operationId "+operation.OperationID+"): missing summary")
+			}
+			if len(operation.Tags) == 0 {
+				issues = append(issues, route+" (operationId "+operation.OperationID+"): missing tags")
+			}
+		}
 	}
-	return op.OperationID
+	for route := range actual {
+		if !contractRoutes[route] {
+			issues = append(issues, route+": router route has no OpenAPI operation (operationId missing)")
+		}
+	}
+	sort.Strings(issues)
+	return issues
+}
+
+func TestContractIssuesDetectDrift(t *testing.T) {
+	doc, err := openapi3.NewLoader().LoadFromData(docs.OpenAPIYAML)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual := map[string]bool{"GET /new-route": true}
+	issues := strings.Join(contractIssues(doc, actual), "\n")
+	for _, fragment := range []string{"GET /new-route: router route has no OpenAPI operation", "GET /health: OpenAPI operationId getHealth has no router route"} {
+		if !strings.Contains(issues, fragment) {
+			t.Errorf("missing drift diagnostic %q in:\n%s", fragment, issues)
+		}
+	}
+	doc.Paths.Find("/health").Get.OperationID = ""
+	if issues := strings.Join(contractIssues(doc, actual), "\n"); !strings.Contains(issues, "GET /health: missing operationId") {
+		t.Errorf("missing operationId diagnostic in:\n%s", issues)
+	}
+	doc.Paths.Find("/health").Get.OperationID = "getReadiness"
+	if issues := strings.Join(contractIssues(doc, actual), "\n"); !strings.Contains(issues, "duplicate operationId getReadiness") {
+		t.Errorf("missing duplicate operationId diagnostic in:\n%s", issues)
+	}
 }
 
 func checkProperties(t *testing.T, doc *openapi3.T, schemaName string, value any) {
