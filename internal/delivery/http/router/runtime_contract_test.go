@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -93,6 +94,54 @@ func (contractConn) Close() error                        { return nil }
 func (contractConn) Begin() (driver.Tx, error)           { return nil, errors.New("unused") }
 func (contractConn) Ping(context.Context) error          { return nil }
 
+type contractCaseKind string
+
+const (
+	successCase contractCaseKind = "success"
+	errorCase   contractCaseKind = "error"
+)
+
+type runtimeContractCase struct {
+	name, method, contractPath, operationID, path, body, contentType string
+	kind                                                             contractCaseKind
+	status                                                           int
+	code                                                             string
+	invalidRequest                                                   bool
+	repoFail, mailFail, mailDisabled, dbClosed                       bool
+}
+
+func runtimeContractCases() []runtimeContractCase {
+	const userJSON = `{"name":"Alice","email":"alice@example.com"}`
+	const mailJSON = `{"to":["user@example.com"],"subject":"Welcome","body":"Hello","is_html":false}`
+	return []runtimeContractCase{
+		{operationID: "getHealth", contractPath: "/health", kind: successCase, name: "health", method: "GET", path: "/health", status: 200},
+		{operationID: "getReadiness", contractPath: "/ready", kind: successCase, name: "ready", method: "GET", path: "/ready", status: 200},
+		{operationID: "getReadiness", contractPath: "/ready", kind: errorCase, name: "ready unavailable", method: "GET", path: "/ready", status: 503, code: "DB_NOT_READY", dbClosed: true},
+		{operationID: "listUsers", contractPath: "/api/v1/users", kind: successCase, name: "list users", method: "GET", path: "/api/v1/users?limit=1&offset=0", status: 200},
+		{operationID: "listUsers", contractPath: "/api/v1/users", kind: successCase, name: "list users invalid limit is normalized", method: "GET", path: "/api/v1/users?limit=not-an-integer", status: 200, invalidRequest: true},
+		{operationID: "listUsers", contractPath: "/api/v1/users", kind: successCase, name: "list users invalid offset is normalized", method: "GET", path: "/api/v1/users?offset=not-an-integer", status: 200, invalidRequest: true},
+		{operationID: "listUsers", contractPath: "/api/v1/users", kind: errorCase, name: "list users repository error", method: "GET", path: "/api/v1/users", status: 500, code: "INTERNAL_ERROR", repoFail: true},
+		{operationID: "createUser", contractPath: "/api/v1/users", kind: successCase, name: "create user", method: "POST", path: "/api/v1/users", body: userJSON, contentType: "application/json", status: 201},
+		{operationID: "createUser", contractPath: "/api/v1/users", kind: errorCase, name: "create user invalid body", method: "POST", path: "/api/v1/users", body: `{"name":"","email":"bad"}`, contentType: "application/json", status: 400, code: "VALIDATION_ERROR", invalidRequest: true},
+		{operationID: "createUser", contractPath: "/api/v1/users", kind: errorCase, name: "create user missing required field", method: "POST", path: "/api/v1/users", body: `{"name":"Alice"}`, contentType: "application/json", status: 400, code: "VALIDATION_ERROR", invalidRequest: true},
+		{operationID: "createUser", contractPath: "/api/v1/users", kind: errorCase, name: "create user missing required body", method: "POST", path: "/api/v1/users", contentType: "application/json", status: 400, code: "INVALID_JSON", invalidRequest: true},
+		{operationID: "createUser", contractPath: "/api/v1/users", kind: errorCase, name: "create user invalid json", method: "POST", path: "/api/v1/users", body: `{`, contentType: "application/json", status: 400, code: "INVALID_JSON", invalidRequest: true},
+		{operationID: "createUser", contractPath: "/api/v1/users", kind: errorCase, name: "create user unsupported media", method: "POST", path: "/api/v1/users", body: userJSON, contentType: "text/plain", status: 415, code: "UNSUPPORTED_MEDIA_TYPE", invalidRequest: true},
+		{operationID: "createUser", contractPath: "/api/v1/users", kind: errorCase, name: "create user repository error", method: "POST", path: "/api/v1/users", body: userJSON, contentType: "application/json", status: 500, code: "INTERNAL_ERROR", repoFail: true},
+		{operationID: "getUser", contractPath: "/api/v1/users/{id}", kind: successCase, name: "get user", method: "GET", path: "/api/v1/users/1", status: 200},
+		{operationID: "getUser", contractPath: "/api/v1/users/{id}", kind: errorCase, name: "get user missing", method: "GET", path: "/api/v1/users/42", status: 404, code: "NOT_FOUND"},
+		{operationID: "getUser", contractPath: "/api/v1/users/{id}", kind: errorCase, name: "get user invalid path type", method: "GET", path: "/api/v1/users/nope", status: 400, code: "INVALID_ID", invalidRequest: true},
+		{operationID: "getUser", contractPath: "/api/v1/users/{id}", kind: errorCase, name: "get user invalid path minimum", method: "GET", path: "/api/v1/users/0", status: 400, code: "VALIDATION_ERROR", invalidRequest: true},
+		{operationID: "getUser", contractPath: "/api/v1/users/{id}", kind: errorCase, name: "get user repository error", method: "GET", path: "/api/v1/users/1", status: 500, code: "INTERNAL_ERROR", repoFail: true},
+		{operationID: "sendMail", contractPath: "/api/v1/mail/send", kind: successCase, name: "send mail", method: "POST", path: "/api/v1/mail/send", body: mailJSON, contentType: "application/json", status: 202},
+		{operationID: "sendMail", contractPath: "/api/v1/mail/send", kind: errorCase, name: "send mail invalid body", method: "POST", path: "/api/v1/mail/send", body: `{"to":[],"subject":"","body":""}`, contentType: "application/json", status: 400, code: "VALIDATION_ERROR", invalidRequest: true},
+		{operationID: "sendMail", contractPath: "/api/v1/mail/send", kind: errorCase, name: "send mail missing required field", method: "POST", path: "/api/v1/mail/send", body: `{"subject":"Hello","body":"Hello"}`, contentType: "application/json", status: 400, code: "VALIDATION_ERROR", invalidRequest: true},
+		{operationID: "sendMail", contractPath: "/api/v1/mail/send", kind: errorCase, name: "send mail unsupported media", method: "POST", path: "/api/v1/mail/send", body: mailJSON, contentType: "text/plain", status: 415, code: "UNSUPPORTED_MEDIA_TYPE", invalidRequest: true},
+		{operationID: "sendMail", contractPath: "/api/v1/mail/send", kind: errorCase, name: "send mail disabled", method: "POST", path: "/api/v1/mail/send", body: mailJSON, contentType: "application/json", status: 503, code: "MAIL_DISABLED", mailDisabled: true},
+		{operationID: "sendMail", contractPath: "/api/v1/mail/send", kind: errorCase, name: "send mail sender error", method: "POST", path: "/api/v1/mail/send", body: mailJSON, contentType: "application/json", status: 500, code: "INTERNAL_ERROR", mailFail: true},
+	}
+}
+
 func TestRuntimeOpenAPIContract(t *testing.T) {
 	doc, err := openapi3.NewLoader().LoadFromData(docs.OpenAPIYAML)
 	if err != nil {
@@ -102,42 +151,10 @@ func TestRuntimeOpenAPIContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const userJSON = `{"name":"Alice","email":"alice@example.com"}`
-	const mailJSON = `{"to":["user@example.com"],"subject":"Welcome","body":"Hello","is_html":false}`
-	cases := []struct {
-		name, method, path, body, contentType      string
-		status                                     int
-		code                                       string
-		invalidRequest                             bool
-		repoFail, mailFail, mailDisabled, dbClosed bool
-	}{
-		{name: "health", method: "GET", path: "/health", status: 200},
-		{name: "ready", method: "GET", path: "/ready", status: 200},
-		{name: "ready unavailable", method: "GET", path: "/ready", status: 503, code: "DB_NOT_READY", dbClosed: true},
-		{name: "list users", method: "GET", path: "/api/v1/users?limit=1&offset=0", status: 200},
-		{name: "list users invalid limit is normalized", method: "GET", path: "/api/v1/users?limit=not-an-integer", status: 200, invalidRequest: true},
-		{name: "list users invalid offset is normalized", method: "GET", path: "/api/v1/users?offset=not-an-integer", status: 200, invalidRequest: true},
-		{name: "list users repository error", method: "GET", path: "/api/v1/users", status: 500, code: "INTERNAL_ERROR", repoFail: true},
-		{name: "create user", method: "POST", path: "/api/v1/users", body: userJSON, contentType: "application/json", status: 201},
-		{name: "create user invalid body", method: "POST", path: "/api/v1/users", body: `{"name":"","email":"bad"}`, contentType: "application/json", status: 400, code: "VALIDATION_ERROR", invalidRequest: true},
-		{name: "create user missing required field", method: "POST", path: "/api/v1/users", body: `{"name":"Alice"}`, contentType: "application/json", status: 400, code: "VALIDATION_ERROR", invalidRequest: true},
-		{name: "create user missing required body", method: "POST", path: "/api/v1/users", contentType: "application/json", status: 400, code: "INVALID_JSON", invalidRequest: true},
-		{name: "create user invalid json", method: "POST", path: "/api/v1/users", body: `{`, contentType: "application/json", status: 400, code: "INVALID_JSON", invalidRequest: true},
-		{name: "create user unsupported media", method: "POST", path: "/api/v1/users", body: userJSON, contentType: "text/plain", status: 415, code: "UNSUPPORTED_MEDIA_TYPE", invalidRequest: true},
-		{name: "create user repository error", method: "POST", path: "/api/v1/users", body: userJSON, contentType: "application/json", status: 500, code: "INTERNAL_ERROR", repoFail: true},
-		{name: "get user", method: "GET", path: "/api/v1/users/1", status: 200},
-		{name: "get user missing", method: "GET", path: "/api/v1/users/42", status: 404, code: "NOT_FOUND"},
-		{name: "get user invalid path type", method: "GET", path: "/api/v1/users/nope", status: 400, code: "INVALID_ID", invalidRequest: true},
-		{name: "get user invalid path minimum", method: "GET", path: "/api/v1/users/0", status: 400, code: "VALIDATION_ERROR", invalidRequest: true},
-		{name: "get user repository error", method: "GET", path: "/api/v1/users/1", status: 500, code: "INTERNAL_ERROR", repoFail: true},
-		{name: "send mail", method: "POST", path: "/api/v1/mail/send", body: mailJSON, contentType: "application/json", status: 202},
-		{name: "send mail invalid body", method: "POST", path: "/api/v1/mail/send", body: `{"to":[],"subject":"","body":""}`, contentType: "application/json", status: 400, code: "VALIDATION_ERROR", invalidRequest: true},
-		{name: "send mail missing required field", method: "POST", path: "/api/v1/mail/send", body: `{"subject":"Hello","body":"Hello"}`, contentType: "application/json", status: 400, code: "VALIDATION_ERROR", invalidRequest: true},
-		{name: "send mail unsupported media", method: "POST", path: "/api/v1/mail/send", body: mailJSON, contentType: "text/plain", status: 415, code: "UNSUPPORTED_MEDIA_TYPE", invalidRequest: true},
-		{name: "send mail disabled", method: "POST", path: "/api/v1/mail/send", body: mailJSON, contentType: "application/json", status: 503, code: "MAIL_DISABLED", mailDisabled: true},
-		{name: "send mail sender error", method: "POST", path: "/api/v1/mail/send", body: mailJSON, contentType: "application/json", status: 500, code: "INTERNAL_ERROR", mailFail: true},
+	cases := runtimeContractCases()
+	for _, issue := range runtimeCoverageIssues(doc, cases) {
+		t.Error(issue)
 	}
-	covered := map[string]map[int]bool{}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			now := time.Date(2026, 4, 6, 10, 0, 0, 0, time.UTC)
@@ -157,12 +174,10 @@ func TestRuntimeOpenAPIContract(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s %s: OpenAPI route: %v", tc.method, tc.path, err)
 			}
-			label := fmt.Sprintf("%s %s (operationId %s)", tc.method, route.Path, route.Operation.OperationID)
-			key := tc.method + " " + route.Path
-			if covered[key] == nil {
-				covered[key] = map[int]bool{}
+			label := fmt.Sprintf("%s %s (operationId %s)", tc.method, tc.contractPath, tc.operationID)
+			if route.Path != tc.contractPath || route.Operation.OperationID != tc.operationID {
+				t.Fatalf("%s: request %s resolved to %s (operationId %s)", label, tc.path, route.Path, route.Operation.OperationID)
 			}
-			covered[key][tc.status] = true
 			input := &openapi3filter.RequestValidationInput{Request: request, Route: route, PathParams: pathParams}
 			requestErr := openapi3filter.ValidateRequest(context.Background(), input)
 			if tc.invalidRequest && requestErr == nil {
@@ -231,17 +246,137 @@ func TestRuntimeOpenAPIContract(t *testing.T) {
 			}
 		})
 	}
+}
+
+func runtimeCoverageIssues(doc *openapi3.T, cases []runtimeContractCase) []string {
+	var issues []string
+	covered := map[string]map[int]bool{}
+	for _, tc := range cases {
+		label := fmt.Sprintf("%s %s (operationId %s)", tc.method, tc.contractPath, tc.operationID)
+		item := doc.Paths.Find(tc.contractPath)
+		var operation *openapi3.Operation
+		if item != nil {
+			operation = item.GetOperation(tc.method)
+		}
+		if operation == nil {
+			issues = append(issues, label+": contract case has no OpenAPI operation")
+			continue
+		}
+		if tc.operationID != operation.OperationID {
+			issues = append(issues, label+": operationId differs from OpenAPI operationId "+operation.OperationID)
+		}
+		status := strconv.Itoa(tc.status)
+		if operation.Responses.Value(status) == nil {
+			issues = append(issues, label+": contract case status "+status+" is not declared in OpenAPI")
+		}
+		if tc.kind != successCase && tc.kind != errorCase {
+			issues = append(issues, label+": contract case has no valid success/error kind")
+		} else if (tc.status < 400) != (tc.kind == successCase) || (tc.code == "") != (tc.kind == successCase) {
+			issues = append(issues, label+": contract case status/error code disagrees with "+string(tc.kind)+" kind")
+		}
+		key := tc.method + " " + tc.contractPath + " " + tc.operationID
+		if covered[key] == nil {
+			covered[key] = map[int]bool{}
+		}
+		covered[key][tc.status] = true
+	}
 	for path, item := range doc.Paths.Map() {
 		for method, operation := range item.Operations() {
-			key := method + " " + path
+			key := method + " " + path + " " + operation.OperationID
+			label := fmt.Sprintf("%s %s (operationId %s)", method, path, operation.OperationID)
+			if len(covered[key]) == 0 {
+				issues = append(issues, label+": missing runtime contract cases")
+			}
+			var hasSuccess, hasError bool
 			for status := range operation.Responses.Map() {
 				code, err := strconv.Atoi(status)
 				if err != nil || !covered[key][code] {
-					t.Errorf("%s (operationId %s): no runtime request/response contract case for status %s", key, operation.OperationID, status)
+					issues = append(issues, label+": missing runtime contract case for declared response status "+status)
 				}
+				if err == nil {
+					if code < 400 {
+						hasSuccess = true
+					} else {
+						hasError = true
+					}
+				}
+			}
+			if !hasSuccess || !hasCoveredKind(cases, method, path, operation.OperationID, successCase) {
+				issues = append(issues, label+": missing successful response contract case")
+			}
+			if hasError && !hasCoveredKind(cases, method, path, operation.OperationID, errorCase) {
+				issues = append(issues, label+": missing error response contract case")
 			}
 		}
 	}
+	sort.Strings(issues)
+	return issues
+}
+
+func hasCoveredKind(cases []runtimeContractCase, method, path, operationID string, kind contractCaseKind) bool {
+	for _, tc := range cases {
+		if tc.method == method && tc.contractPath == path && tc.operationID == operationID && tc.kind == kind &&
+			((kind == successCase && tc.status < 400 && tc.code == "") || (kind == errorCase && tc.status >= 400 && tc.code != "")) {
+			return true
+		}
+	}
+	return false
+}
+
+func TestRuntimeCoverageDetectsMissingOperationsAndCases(t *testing.T) {
+	load := func(t *testing.T) *openapi3.T {
+		t.Helper()
+		doc, err := openapi3.NewLoader().LoadFromData(docs.OpenAPIYAML)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return doc
+	}
+	assertIssue := func(t *testing.T, doc *openapi3.T, cases []runtimeContractCase, fragment string) {
+		t.Helper()
+		issues := strings.Join(runtimeCoverageIssues(doc, cases), "\n")
+		if !strings.Contains(issues, fragment) {
+			t.Fatalf("missing diagnostic %q in:\n%s", fragment, issues)
+		}
+	}
+	if issues := runtimeCoverageIssues(load(t), runtimeContractCases()); len(issues) != 0 {
+		t.Fatalf("baseline contract coverage: %v", issues)
+	}
+
+	t.Run("new OpenAPI operation without cases", func(t *testing.T) {
+		doc := load(t)
+		description := "ok"
+		doc.Paths.Set("/new-operation", &openapi3.PathItem{Get: &openapi3.Operation{
+			OperationID: "getNewOperation",
+			Responses:   openapi3.NewResponses(openapi3.WithStatus(200, &openapi3.ResponseRef{Value: &openapi3.Response{Description: &description}})),
+		}})
+		assertIssue(t, doc, runtimeContractCases(), "GET /new-operation (operationId getNewOperation): missing runtime contract cases")
+	})
+
+	t.Run("removed success and error cases", func(t *testing.T) {
+		var cases []runtimeContractCase
+		for _, tc := range runtimeContractCases() {
+			if tc.operationID != "getReadiness" {
+				cases = append(cases, tc)
+			}
+		}
+		assertIssue(t, load(t), cases, "GET /ready (operationId getReadiness): missing successful response contract case")
+		assertIssue(t, load(t), cases, "GET /ready (operationId getReadiness): missing error response contract case")
+		assertIssue(t, load(t), cases, "GET /ready (operationId getReadiness): missing runtime contract case for declared response status 503")
+	})
+
+	t.Run("mismatched operation id", func(t *testing.T) {
+		cases := runtimeContractCases()
+		cases[0].operationID = "wrongId"
+		assertIssue(t, load(t), cases, "GET /health (operationId wrongId): operationId differs from OpenAPI operationId getHealth")
+	})
+
+	t.Run("missing case kind", func(t *testing.T) {
+		cases := runtimeContractCases()
+		cases[0].kind = ""
+		assertIssue(t, load(t), cases, "GET /health (operationId getHealth): contract case has no valid success/error kind")
+		assertIssue(t, load(t), cases, "GET /health (operationId getHealth): missing successful response contract case")
+	})
 }
 
 func sameKeys(value map[string]json.RawMessage, expected []string) bool {

@@ -252,7 +252,9 @@ go vet ./...
 make openapi-check
 ```
 
-`openapi-check`는 문법과 `$ref`, 실제 router와 OpenAPI 양방향 route/HTTP method 일치, `operationId` 누락·중복, DTO 속성, 실제 HTTP request/response의 status와 schema를 검증합니다. `/openapi.json`과 `/swagger/*`는 문서 제공 경로라 비교에서 제외합니다. 테스트는 가짜 DB 연결과 메일 발송기를 사용하므로 실제 DB·SMTP가 필요하지 않습니다. 새 API route를 추가할 때는 OpenAPI operation과 런타임 계약 테스트 사례도 함께 추가합니다.
+`openapi-check`는 문법과 `$ref`, 실제 router와 OpenAPI 양방향 route/HTTP method 일치, `operationId` 누락·중복, DTO 속성, 실제 HTTP request/response의 status와 schema를 검증합니다. `/openapi.json`과 `/swagger/*`는 문서 제공 경로라 비교에서 제외합니다. 테스트는 가짜 DB 연결과 메일 발송기를 사용하므로 실제 DB·SMTP가 필요하지 않습니다.
+
+새 API route를 추가할 때는 `docs/openapi.yaml`에 operation과 응답 status를 선언하고, `internal/delivery/http/router/runtime_contract_test.go`의 `runtimeContractCases`에 요청·기대 status·정상/오류 구분을 추가합니다. 각 operation의 모든 선언된 응답 status와 최소 한 개의 정상 사례를 실행해야 하며, 오류 응답을 선언한 경우 오류 사례도 필요합니다. 누락되면 `make openapi-check`가 method, path, operationId와 누락 항목을 출력하며 실패합니다.
 
 Swagger UI는 `swagger.enabled: true`일 때 아래 경로에서 `/openapi.json`을 읽습니다.
 
