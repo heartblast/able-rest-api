@@ -149,6 +149,9 @@ func buildSimpleMessage(cfg config.SMTPConfig, message mail.MailMessage) string 
 	if len(message.CC) > 0 {
 		headers = append(headers, fmt.Sprintf("Cc: %s", strings.Join(message.CC, ", ")))
 	}
+	if message.MessageID != "" {
+		headers = append(headers, "Message-ID: "+message.MessageID)
+	}
 
 	return strings.Join(headers, "\r\n") + "\r\n\r\n" + message.Body
 }
@@ -166,6 +169,9 @@ func buildMultipartMessage(cfg config.SMTPConfig, message mail.MailMessage) ([]b
 	}
 	if len(message.CC) > 0 {
 		headers = append(headers, fmt.Sprintf("Cc: %s", strings.Join(message.CC, ", ")))
+	}
+	if message.MessageID != "" {
+		headers = append(headers, "Message-ID: "+message.MessageID)
 	}
 	if _, err := buf.WriteString(strings.Join(headers, "\r\n") + "\r\n\r\n"); err != nil {
 		return nil, err

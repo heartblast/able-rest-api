@@ -45,7 +45,13 @@ able-rest-api/
 
 `scheduler.mail_dispatch.enabled`를 켜면 `cmd/scheduler`가 설정한 `interval`마다 `to`/`cc`/`bcc`, `subject`, `body`, `is_html`, `attachments`로 메일을 발송합니다. 첨부파일은 `filename`, `content_type`, `content_base64`를 사용합니다. 이 설정은 기존 반복 발송용입니다. PostgreSQL 락은 여러 스케줄러 프로세스의 동일 작업 동시 실행을 막습니다. `lock_provider: none`에서는 반복 작업의 프로세스 사이 중복 실행을 막지 않습니다.
 
-개별 예약 메일은 PostgreSQL 또는 MySQL의 `scheduled_mails` migration을 적용한 뒤 `scheduler.scheduled_mail.enabled`를 켜서 처리합니다. `cmd/schedulemail -config configs/app.yaml -input request.json`으로 한 건을 예약합니다. 입력 JSON은 `{"scheduled_at":"2026-10-01T09:00:00+09:00","mail":{"to":["user@example.com"],"subject":"안내","body":"내용"}}` 형식입니다. 명령은 생성된 예약 ID를 출력합니다. `max_attempts`에는 최초 발송도 포함되며, 일시적 실패는 `retry_delay`부터 최대 1시간까지 지수 지연으로 재시도합니다. `PROCESSING` 상태가 `lease_duration`을 넘기면 재claim하고, 시도 한도를 넘으면 `FAILED`로 종료합니다. SMTP가 메일을 수락한 직후 프로세스가 종료되면 DB에 `SENT`를 기록하지 못하므로 복구 발송이 중복될 수 있습니다. 수신측 중복 방지가 필요한 경우 후속 단계에서 안정적인 메시지 ID와 수신측 멱등 처리를 연결해야 합니다.
+개별 예약 메일은 PostgreSQL 또는 MySQL의 `scheduled_mails` migration을 적용한 뒤 `scheduler.scheduled_mail.enabled`를 켜서 처리합니다. `go run ./cmd/schedulemail -config configs/app.yaml -input request.json`으로 한 건을 예약합니다. 입력 JSON은 `{"scheduled_at":"2026-10-01T09:00:00+09:00","mail":{"to":["user@example.com"],"subject":"안내","body":"내용"}}` 형식입니다. 명령은 생성된 예약 ID를 출력합니다. 즉시 발송 API는 요청마다 SMTP로 바로 전송하고 영속 예약이나 자동 재시도를 만들지 않습니다.
+
+예약 시 `<예약 ID@scheduled.able-rest-api.invalid>` 형식의 고유한 `message_id`를 DB에 저장합니다. 발송, retry, lease 만료 후 재claim 및 프로세스 재시작 시 같은 값을 SMTP `Message-ID` 헤더로 보냅니다. claim token은 각 claim의 상태 변경을 보호하는 별도 값이며 재claim마다 바뀝니다. 예약 ID와 Message-ID는 예약 발송 로그와 DB 행에서 추적할 수 있습니다. `max_attempts`에는 최초 발송도 포함되며, 일시적 실패는 `retry_delay`부터 최대 1시간까지 지수 지연으로 재시도합니다. `PROCESSING` 상태가 `lease_duration`을 넘기면 재claim하고, 시도 한도를 넘으면 `FAILED`로 종료합니다. SMTP가 수락한 뒤 `SENT` 기록 전에 프로세스가 종료되거나 DB 기록이 실패하면 동일 Message-ID로 재발송될 수 있습니다. 수신 시스템은 이 헤더를 중복 식별에 사용할 수 있지만, SMTP와 수신 서버는 Message-ID에 따른 중복 제거 또는 exactly-once 전달을 보장하지 않습니다.
+
+### DB migration 적용
+
+`cmd/migrate`는 대상 디렉터리만 확인하며 SQL을 실행하지 않습니다. 배포 시 사용하는 migration 도구 또는 DB 클라이언트로 `migrations/postgres/` 또는 `migrations/mysql/`의 SQL을 번호 순서대로 적용하고 적용 이력을 관리하세요. 기존 설치에는 PostgreSQL `000004_add_scheduled_mail_message_id.sql`, MySQL `000003_add_scheduled_mail_message_id.sql`을 스케줄러 재시작 전에 적용해야 합니다. 두 migration은 기존 예약의 ID에서 Message-ID를 채웁니다. 새 설치에도 앞선 테이블 생성 migration을 먼저 적용합니다.
 
 새 업무 모듈은 `internal/modules/<이름>/`에 모델과 외부 경계 계약, 서비스의 업무 규칙, DTO, HTTP 핸들러, `routes.go`를 추가합니다. 외부 구현이 필요하면 해당 모듈의 인터페이스를 따르는 `internal/infra` 구현을 `cmd/server`에서 주입하고 서비스와 `Routes`를 조립합니다. 공통 라우터는 경로 등록 함수만 받으므로 일반적인 모듈 추가에는 수정할 필요가 없습니다. `docs/openapi.yaml`에 요청·응답과 operationId를 정의하고 `internal/delivery/http/router/runtime_contract_test.go`에 선언된 상태별 정상·오류 사례를 추가한 뒤 `go test ./...`, `go vet ./...`, `go build ./...`, `make openapi-check`를 실행합니다. 기존 URI와 응답 형식은 유지합니다.
 

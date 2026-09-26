@@ -17,6 +17,7 @@ func TestMailHeaderAndRecipientValidation(t *testing.T) {
 		{"subject injection", MailMessage{To: []string{"a@example.com"}, Subject: "Hi\r\nBcc: victim@example.com", Body: "hello"}},
 		{"display name recipient", MailMessage{To: []string{"Eve <eve@example.com>"}, Subject: "Hi", Body: "hello"}},
 		{"attachment content type injection", MailMessage{To: []string{"a@example.com"}, Subject: "Hi", Body: "hello", Attachments: []MailAttachment{{Filename: "x.txt", ContentType: "text/plain\r\nX-Test: injected", ContentBase64: "YQ=="}}}},
+		{"message id injection", MailMessage{MessageID: "<ok@example.com>\r\nBcc: victim@example.com", To: []string{"a@example.com"}, Subject: "Hi", Body: "hello"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -36,7 +36,7 @@ func (r *scheduledMailRepository) bind(pg, mysql string) string {
 
 // Create는 신규 예약 메일을 저장한다.
 func (r *scheduledMailRepository) Create(ctx context.Context, item *scheduler.ScheduledMail) error {
-	if item == nil || item.ID == "" || item.ScheduledAt.IsZero() || len(item.ID) > 64 || item.Status != "" && item.Status != scheduler.ScheduledMailPending {
+	if item == nil || item.ID == "" || item.MessageID != "<"+item.ID+"@scheduled.able-rest-api.invalid>" || item.ScheduledAt.IsZero() || len(item.ID) > 64 || item.Status != "" && item.Status != scheduler.ScheduledMailPending {
 		return errors.New("예약 메일 입력이 올바르지 않습니다")
 	}
 	payload, err := json.Marshal(item.Payload)
@@ -44,13 +44,13 @@ func (r *scheduledMailRepository) Create(ctx context.Context, item *scheduler.Sc
 		return errors.New("예약 메일 payload가 올바르지 않습니다")
 	}
 	now := time.Now().UTC()
-	args := []any{item.ID, item.ScheduledAt.UTC(), string(payload), now}
+	args := []any{item.ID, item.MessageID, item.ScheduledAt.UTC(), string(payload), now}
 	if r.vendor == config.DBVendorMySQL {
 		args = append(args, now)
 	}
 	_, err = r.db.ExecContext(ctx, r.bind(
-		`INSERT INTO scheduled_mails (id, scheduled_at, payload, status, attempt_count, created_at, updated_at) VALUES ($1, $2, $3, 'PENDING', 0, $4, $4)`,
-		`INSERT INTO scheduled_mails (id, scheduled_at, payload, status, attempt_count, created_at, updated_at) VALUES (?, ?, ?, 'PENDING', 0, ?, ?)`),
+		`INSERT INTO scheduled_mails (id, message_id, scheduled_at, payload, status, attempt_count, created_at, updated_at) VALUES ($1, $2, $3, $4, 'PENDING', 0, $5, $5)`,
+		`INSERT INTO scheduled_mails (id, message_id, scheduled_at, payload, status, attempt_count, created_at, updated_at) VALUES (?, ?, ?, ?, 'PENDING', 0, ?, ?)`),
 		args...)
 	return err
 }
@@ -66,8 +66,8 @@ func (r *scheduledMailRepository) ClaimDue(ctx context.Context, now time.Time, l
 	}
 	defer tx.Rollback()
 	query := r.bind(
-		`SELECT id, scheduled_at, payload, status, attempt_count, next_retry_at, last_error, created_at, updated_at FROM scheduled_mails WHERE (status = 'PENDING' AND scheduled_at <= $1) OR (status = 'RETRY' AND next_retry_at <= $1) OR (status = 'PROCESSING' AND lease_until <= $1) ORDER BY scheduled_at, id LIMIT 1 FOR UPDATE SKIP LOCKED`,
-		`SELECT id, scheduled_at, payload, status, attempt_count, next_retry_at, last_error, created_at, updated_at FROM scheduled_mails WHERE (status = 'PENDING' AND scheduled_at <= ?) OR (status = 'RETRY' AND next_retry_at <= ?) OR (status = 'PROCESSING' AND lease_until <= ?) ORDER BY scheduled_at, id LIMIT 1 FOR UPDATE SKIP LOCKED`)
+		`SELECT id, message_id, scheduled_at, payload, status, attempt_count, next_retry_at, last_error, created_at, updated_at FROM scheduled_mails WHERE (status = 'PENDING' AND scheduled_at <= $1) OR (status = 'RETRY' AND next_retry_at <= $1) OR (status = 'PROCESSING' AND lease_until <= $1) ORDER BY scheduled_at, id LIMIT 1 FOR UPDATE SKIP LOCKED`,
+		`SELECT id, message_id, scheduled_at, payload, status, attempt_count, next_retry_at, last_error, created_at, updated_at FROM scheduled_mails WHERE (status = 'PENDING' AND scheduled_at <= ?) OR (status = 'RETRY' AND next_retry_at <= ?) OR (status = 'PROCESSING' AND lease_until <= ?) ORDER BY scheduled_at, id LIMIT 1 FOR UPDATE SKIP LOCKED`)
 	args := []any{now.UTC()}
 	if r.vendor == config.DBVendorMySQL {
 		args = []any{now.UTC(), now.UTC(), now.UTC()}
@@ -76,7 +76,7 @@ func (r *scheduledMailRepository) ClaimDue(ctx context.Context, now time.Time, l
 	var payload []byte
 	var nextRetry sql.NullTime
 	var lastError sql.NullString
-	err = tx.QueryRowContext(ctx, query, args...).Scan(&item.ID, &item.ScheduledAt, &payload, &item.Status, &item.AttemptCount, &nextRetry, &lastError, &item.CreatedAt, &item.UpdatedAt)
+	err = tx.QueryRowContext(ctx, query, args...).Scan(&item.ID, &item.MessageID, &item.ScheduledAt, &payload, &item.Status, &item.AttemptCount, &nextRetry, &lastError, &item.CreatedAt, &item.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}

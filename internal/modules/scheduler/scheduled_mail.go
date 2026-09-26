@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"able-rest-api/internal/modules/mail"
+	"able-rest-api/internal/platform/logger"
 )
 
 // ScheduledMailStatus는 예약 메일의 영속 상태다.
@@ -26,6 +27,7 @@ const (
 // ScheduledMail은 개별 예약 메일과 발송 시도 정보를 담는다.
 type ScheduledMail struct {
 	ID           string
+	MessageID    string
 	ScheduledAt  time.Time
 	Payload      mail.MailMessage
 	Status       ScheduledMailStatus
@@ -58,7 +60,8 @@ func ScheduleMail(ctx context.Context, store ScheduledMailRepository, scheduledA
 		return "", err
 	}
 	id := hex.EncodeToString(bytes)
-	item := &ScheduledMail{ID: id, ScheduledAt: scheduledAt.UTC(), Payload: message, Status: ScheduledMailPending}
+	message.MessageID = ""
+	item := &ScheduledMail{ID: id, MessageID: "<" + id + "@scheduled.able-rest-api.invalid>", ScheduledAt: scheduledAt.UTC(), Payload: message, Status: ScheduledMailPending}
 	if err := store.Create(ctx, item); err != nil {
 		return "", fmt.Errorf("예약 메일 저장 실패: %w", err)
 	}
@@ -80,11 +83,12 @@ type ScheduledMailJob struct {
 	maxAttempts int
 	retryDelay  time.Duration
 	now         func() time.Time
+	log         logger.Logger
 }
 
 // NewScheduledMailJob은 예약 메일 작업을 생성한다.
-func NewScheduledMailJob(store ScheduledMailRepository, dispatch ScheduledMailDispatch, enabled bool, interval, lease time.Duration, maxAttempts int, retryDelay time.Duration) *ScheduledMailJob {
-	return &ScheduledMailJob{store: store, dispatch: dispatch, enabled: enabled, interval: interval, lease: lease, maxAttempts: maxAttempts, retryDelay: retryDelay, now: time.Now}
+func NewScheduledMailJob(store ScheduledMailRepository, dispatch ScheduledMailDispatch, enabled bool, interval, lease time.Duration, maxAttempts int, retryDelay time.Duration, log logger.Logger) *ScheduledMailJob {
+	return &ScheduledMailJob{store: store, dispatch: dispatch, enabled: enabled, interval: interval, lease: lease, maxAttempts: maxAttempts, retryDelay: retryDelay, now: time.Now, log: log}
 }
 
 // Definition은 작업 실행 주기를 반환한다.
@@ -107,6 +111,13 @@ func (j *ScheduledMailJob) Run(ctx context.Context) error {
 		}
 		if item == nil {
 			return nil
+		}
+		if item.MessageID == "" {
+			return fmt.Errorf("예약 메일 message_id 누락: reservation_id=%s", item.ID)
+		}
+		item.Payload.MessageID = item.MessageID
+		if j.log != nil {
+			j.log.Info("scheduled mail dispatch", "reservation_id", item.ID, "message_id", item.MessageID, "attempt", item.AttemptCount)
 		}
 		status := ScheduledMailSent
 		var next *time.Time
@@ -134,7 +145,10 @@ func (j *ScheduledMailJob) Run(ctx context.Context) error {
 			}
 		}
 		if err := j.store.Complete(ctx, item.ID, item.ClaimToken, status, next, lastError); err != nil {
-			return fmt.Errorf("예약 메일 상태 기록 실패: %w", err)
+			return fmt.Errorf("예약 메일 상태 기록 실패: reservation_id=%s message_id=%s: %w", item.ID, item.MessageID, err)
+		}
+		if j.log != nil {
+			j.log.Info("scheduled mail completed", "reservation_id", item.ID, "message_id", item.MessageID, "status", status, "attempt", item.AttemptCount)
 		}
 	}
 }

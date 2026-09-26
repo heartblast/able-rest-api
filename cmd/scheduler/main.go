@@ -81,7 +81,7 @@ func main() {
 		}
 		mailSchedule := cfg.Scheduler.ScheduledMail
 		jobs = append(jobs, scheduler.NewScheduledMailJob(store, mailmodule.NewMessageDispatch(mailService), true,
-			mailSchedule.Interval, mailSchedule.LeaseDuration, mailSchedule.MaxAttempts, mailSchedule.RetryDelay))
+			mailSchedule.Interval, mailSchedule.LeaseDuration, mailSchedule.MaxAttempts, mailSchedule.RetryDelay, log))
 	}
 	jobService := scheduler.NewJobService(
 		schedulerinfra.NewExecutionRepository(cfg.DB.Vendor, db),

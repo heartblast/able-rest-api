@@ -8,6 +8,7 @@ import (
 	"mime"
 	"net/mail"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -23,6 +24,8 @@ const (
 	maxTotalAttachmentSize = 20 * 1024 * 1024
 	maxRecipients          = 100
 )
+
+var messageIDPattern = regexp.MustCompile(`^<[A-Za-z0-9][A-Za-z0-9._+-]*@[A-Za-z0-9][A-Za-z0-9.-]*>$`)
 
 // MailService는 메일 발송 유스케이스를 담당한다.
 type MailService struct {
@@ -55,6 +58,9 @@ func (s *MailService) SendMail(ctx context.Context, message MailMessage) (int, e
 
 // NormalizeMessage는 메일 입력을 검증하고 발송 형식으로 정규화한다.
 func NormalizeMessage(message MailMessage) (MailMessage, error) {
+	if len(message.MessageID) > 255 || message.MessageID != "" && !messageIDPattern.MatchString(message.MessageID) {
+		return MailMessage{}, fmt.Errorf("%w: message_id 형식이 올바르지 않습니다", ErrInvalidInput)
+	}
 	to, err := normalizeAddresses(message.To, true)
 	if err != nil {
 		return MailMessage{}, err
