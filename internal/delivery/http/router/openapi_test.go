@@ -105,6 +105,7 @@ func contractIssues(doc *openapi3.T, actual map[string]bool) []string {
 			if len(operation.Tags) == 0 {
 				issues = append(issues, route+" (operationId "+operation.OperationID+"): missing tags")
 			}
+			issues = append(issues, operationMetadataIssues(route, item, operation)...)
 		}
 	}
 	for route := range actual {
@@ -113,6 +114,64 @@ func contractIssues(doc *openapi3.T, actual map[string]bool) []string {
 		}
 	}
 	sort.Strings(issues)
+	return issues
+}
+
+// operationMetadataIssues keeps SDK/tool generation inputs present as routes evolve.
+func operationMetadataIssues(route string, item *openapi3.PathItem, operation *openapi3.Operation) []string {
+	label := route + " (operationId " + operation.OperationID + ")"
+	var issues []string
+	if strings.TrimSpace(operation.Description) == "" {
+		issues = append(issues, label+": missing description")
+	}
+	if operation.Responses == nil || len(operation.Responses.Map()) == 0 {
+		issues = append(issues, label+": missing responses")
+	} else {
+		for status, response := range operation.Responses.Map() {
+			if response == nil || response.Value == nil {
+				issues = append(issues, label+": response "+status+" unresolved")
+				continue
+			}
+			if response.Value.Description == nil || strings.TrimSpace(*response.Value.Description) == "" {
+				issues = append(issues, label+": response "+status+" missing description")
+			}
+			content := response.Value.Content["application/json"]
+			if content == nil || content.Schema == nil || content.Schema.Value == nil {
+				issues = append(issues, label+": response "+status+" missing application/json schema")
+			}
+		}
+	}
+	for _, parameter := range append(append(openapi3.Parameters{}, item.Parameters...), operation.Parameters...) {
+		if parameter == nil || parameter.Value == nil {
+			issues = append(issues, label+": unresolved parameter")
+			continue
+		}
+		name := parameter.Value.Name
+		if strings.TrimSpace(parameter.Value.Description) == "" {
+			issues = append(issues, label+": parameter "+name+" missing description")
+		}
+		if parameter.Value.Schema == nil || parameter.Value.Schema.Value == nil {
+			issues = append(issues, label+": parameter "+name+" missing schema")
+		}
+	}
+	if operation.RequestBody != nil {
+		if operation.RequestBody.Value == nil {
+			issues = append(issues, label+": unresolved requestBody")
+		} else {
+			body := operation.RequestBody.Value
+			if strings.TrimSpace(body.Description) == "" {
+				issues = append(issues, label+": requestBody missing description")
+			}
+			if len(body.Content) == 0 {
+				issues = append(issues, label+": requestBody missing schema")
+			}
+			for mediaType, content := range body.Content {
+				if content == nil || content.Schema == nil || content.Schema.Value == nil {
+					issues = append(issues, label+": requestBody "+mediaType+" missing schema")
+				}
+			}
+		}
+	}
 	return issues
 }
 
@@ -135,6 +194,42 @@ func TestContractIssuesDetectDrift(t *testing.T) {
 	doc.Paths.Find("/health").Get.OperationID = "getReadiness"
 	if issues := strings.Join(contractIssues(doc, actual), "\n"); !strings.Contains(issues, "duplicate operationId getReadiness") {
 		t.Errorf("missing duplicate operationId diagnostic in:\n%s", issues)
+	}
+}
+
+func TestOperationMetadataDetectsMissingInputs(t *testing.T) {
+	load := func(t *testing.T) *openapi3.T {
+		t.Helper()
+		doc, err := openapi3.NewLoader().LoadFromData(docs.OpenAPIYAML)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return doc
+	}
+	for _, tc := range []struct {
+		name, path, method, diagnostic string
+		change                         func(*openapi3.Operation)
+	}{
+		{"description", "/health", "GET", "missing description", func(op *openapi3.Operation) { op.Description = "" }},
+		{"responses", "/health", "GET", "missing responses", func(op *openapi3.Operation) { op.Responses = nil }},
+		{"response schema", "/health", "GET", "response 200 missing application/json schema", func(op *openapi3.Operation) { op.Responses.Value("200").Value.Content["application/json"].Schema = nil }},
+		{"parameter description", "/api/v1/users/{id}", "GET", "parameter id missing description", func(op *openapi3.Operation) { op.Parameters[0].Value.Description = "" }},
+		{"parameter schema", "/api/v1/users/{id}", "GET", "parameter id missing schema", func(op *openapi3.Operation) { op.Parameters[0].Value.Schema = nil }},
+		{"requestBody description", "/api/v1/users", "POST", "requestBody missing description", func(op *openapi3.Operation) { op.RequestBody.Value.Description = "" }},
+		{"requestBody schema", "/api/v1/users", "POST", "requestBody application/json missing schema", func(op *openapi3.Operation) { op.RequestBody.Value.Content["application/json"].Schema = nil }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			doc := load(t)
+			op := doc.Paths.Find(tc.path).Get
+			if tc.method == "POST" {
+				op = doc.Paths.Find(tc.path).Post
+			}
+			tc.change(op)
+			issues := strings.Join(operationMetadataIssues(tc.method+" "+tc.path, doc.Paths.Find(tc.path), op), "\n")
+			if !strings.Contains(issues, tc.diagnostic) {
+				t.Fatalf("missing diagnostic %q in:\n%s", tc.diagnostic, issues)
+			}
+		})
 	}
 }
 
