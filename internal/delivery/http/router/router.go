@@ -9,6 +9,7 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 
+	"able-rest-api/docs"
 	"able-rest-api/internal/app/service"
 	"able-rest-api/internal/delivery/http/handler"
 	custommw "able-rest-api/internal/delivery/http/middleware"
@@ -33,6 +34,10 @@ func New(cfg *config.Config, log logger.Logger, db *sql.DB, repos *persistence.R
 
 	r.Get("/health", healthHandler.Health)
 	r.Get("/ready", healthHandler.Ready)
+	r.Get("/openapi.json", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, _ = w.Write(docs.OpenAPIJSON)
+	})
 
 	r.Route("/api/v1", func(api chi.Router) {
 		api.Route("/users", func(users chi.Router) {
@@ -47,7 +52,7 @@ func New(cfg *config.Config, log logger.Logger, db *sql.DB, repos *persistence.R
 
 	if cfg.Swagger.Enabled {
 		r.Get("/swagger/*", httpSwagger.Handler(
-			httpSwagger.URL("/swagger/doc.json"),
+			httpSwagger.URL("/openapi.json"),
 		))
 	}
 

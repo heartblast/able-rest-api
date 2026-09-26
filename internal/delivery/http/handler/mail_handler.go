@@ -20,18 +20,6 @@ func NewMailHandler(svc *service.MailService) *MailHandler {
 	return &MailHandler{service: svc}
 }
 
-// Send godoc
-// @Summary 메일 발송
-// @Description SMTP 서버를 통해 메일을 발송한다
-// @Tags mail
-// @Accept json
-// @Produce json
-// @Param request body dto.SendMailRequest true "메일 발송 요청"
-// @Success 202 {object} dto.SendMailResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 503 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Router /api/v1/mail/send [post]
 func (h *MailHandler) Send(w http.ResponseWriter, r *http.Request) {
 	var req dto.SendMailRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

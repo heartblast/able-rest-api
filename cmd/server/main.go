@@ -10,7 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	_ "able-rest-api/docs"
 	"able-rest-api/internal/app/service"
 	"able-rest-api/internal/delivery/http/router"
 	"able-rest-api/internal/infra/config"
@@ -21,10 +20,6 @@ import (
 	"able-rest-api/internal/platform/logger"
 )
 
-// @title My API
-// @version 1.0
-// @description 멀티 DB와 암호화된 설정을 지원하는 REST API 샘플입니다.
-// @BasePath /
 func main() {
 	ctx := context.Background()
 

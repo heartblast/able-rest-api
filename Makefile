@@ -1,7 +1,7 @@
 APP_NAME=able-rest-api
 CONFIG?=configs/app.yaml
 
-.PHONY: run build test swag secretenc
+.PHONY: run build test openapi-check secretenc
 
 run:
 	go run ./cmd/server $(CONFIG)
@@ -12,8 +12,8 @@ build:
 test:
 	go test ./...
 
-swag:
-	swag init -g cmd/server/main.go -o docs
+openapi-check:
+	go test ./docs ./internal/delivery/http/router
 
 secretenc:
 	go run ./cmd/secretenc --value "$(VALUE)" --key-env "$(KEY_ENV)"

@@ -23,17 +23,6 @@ func NewUserHandler(svc *service.UserService) *UserHandler {
 	return &UserHandler{service: svc}
 }
 
-// GetUser godoc
-// @Summary 사용자 단건 조회
-// @Description ID로 사용자를 조회한다
-// @Tags users
-// @Produce json
-// @Param id path int true "사용자 ID"
-// @Success 200 {object} dto.UserGetResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 404 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Router /api/v1/users/{id} [get]
 func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
@@ -57,16 +46,6 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	writeSuccess(w, r, http.StatusOK, toUserResponse(*user))
 }
 
-// ListUsers godoc
-// @Summary 사용자 목록 조회
-// @Description 페이징 기반으로 사용자 목록을 조회한다
-// @Tags users
-// @Produce json
-// @Param limit query int false "조회 건수"
-// @Param offset query int false "오프셋"
-// @Success 200 {object} dto.UserListEnvelopeResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Router /api/v1/users [get]
 func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
@@ -88,17 +67,6 @@ func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// CreateUser godoc
-// @Summary 사용자 생성
-// @Description 신규 사용자를 생성한다
-// @Tags users
-// @Accept json
-// @Produce json
-// @Param request body dto.CreateUserRequest true "사용자 생성 요청"
-// @Success 201 {object} dto.UserCreateResponse
-// @Failure 400 {object} dto.ErrorResponse
-// @Failure 500 {object} dto.ErrorResponse
-// @Router /api/v1/users [post]
 func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var req dto.CreateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

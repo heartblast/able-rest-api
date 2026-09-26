@@ -1,6 +1,6 @@
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("run", "build", "test", "swag", "secretenc")]
+    [ValidateSet("run", "build", "test", "openapi-check", "secretenc")]
     [string]$Target = "build",
 
     [string]$Config = "configs/app.yaml",
@@ -58,10 +58,6 @@ function Invoke-GoRun {
     go run ./cmd/server $ConfigPath
 }
 
-function Invoke-Swagger {
-    swag init -g cmd/server/main.go -o docs
-}
-
 function Invoke-SecretEnc {
     param(
         [Parameter(Mandatory = $true)]
@@ -90,9 +86,8 @@ switch ($Target) {
     "run" {
         Invoke-Step -Name "Run Server" -Action { Invoke-GoRun -ConfigPath $Config }
     }
-    "swag" {
-        Assert-CommandExists -CommandName "swag"
-        Invoke-Step -Name "Generate Swagger" -Action { Invoke-Swagger }
+    "openapi-check" {
+        Invoke-Step -Name "Validate OpenAPI" -Action { go test ./docs ./internal/delivery/http/router }
     }
     "secretenc" {
         Invoke-Step -Name "Encrypt Secret" -Action { Invoke-SecretEnc -PlainValue $Value -MasterKeyEnv $KeyEnv }
